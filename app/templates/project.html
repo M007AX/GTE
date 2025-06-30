@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block title %}Проект{% endblock %}
+
+{% block content %}
+<div class="project-container">
+    <h1>Прогноз на {{ (now + timedelta(days=1)).strftime('%d.%m.%Y') }}</h1>
+    <a href="{{ url_for('auth.logout') }}" class="btn">Выйти</a>
+</div>
+{% endblock %}
