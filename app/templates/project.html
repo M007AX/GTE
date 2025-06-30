@@ -4,7 +4,34 @@
 
 {% block content %}
 <div class="project-container">
-    <h1>Прогноз на {{ (now + timedelta(days=1)).strftime('%d.%m.%Y') }}</h1>
-    <a href="{{ url_for('auth.logout') }}" class="btn">Выйти</a>
+    <h1>Прогноз на {{ forecast_date }}</h1>
+
+    <div class="weather-controls">
+        <a href="{{ url_for('auth.project') }}" class="btn btn-refresh">Обновить данные</a>
+        <a href="{{ url_for('auth.logout') }}" class="btn btn-logout">Выйти</a>
+    </div>
+
+    <table class="weather-table">
+        <thead>
+            <tr>
+                <th style="text-align: left; padding-left: 15px;">W, kW</th>
+                <th style="text-align: left; padding-left: 15px;">Час</th>
+                <th style="text-align: left; padding-left: 15px;">Температура (°C)</th>
+                <th style="text-align: left; padding-left: 15px;">Влажность (%)</th>
+                <th style="text-align: left; padding-left: 15px;">Давление (гПа)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in weather_records %}
+            <tr>
+                <td style="text-align: center;">{{ record['W, kW'] if record['W, kW'] is not none else '' }}</td>
+                <td style="text-align: center;">{{ record['Час'] }}</td>
+                <td style="text-align: center;">{{ record['Температура (°C)'] }}</td>
+                <td style="text-align: center;">{{ record['Влажность (%)'] }}</td>
+                <td style="text-align: center;">{{ record['Давление (гПа)'] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
 {% endblock %}

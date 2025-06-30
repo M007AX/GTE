@@ -298,3 +298,29 @@ a {
         font-size: 24px;
     }
 }
+
+
+.weather-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 10px; /* Расстояние между столбцами */
+    margin-top: 20px;
+}
+
+.weather-table th {
+    background-color: #f2f2f2;
+    text-align: left;
+    padding-left: 15px;
+    font-weight: bold;
+}
+
+.weather-table td {
+    text-align: center;
+    padding: 8px;
+    background-color: #f9f9f9;
+    border-radius: 4px;
+}
+
+.weather-table tr:hover td {
+    background-color: #e9e9e9;
+}
