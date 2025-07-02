@@ -53,7 +53,7 @@ def get_tomorrow_weather():
             params={
                 'latitude': 56.50,
                 'longitude': 60.35,
-                'hourly': 'temperature_2m,relativehumidity_2m,pressure_msl',
+                'hourly': 'temperature_2m,relativehumidity_2m,pressure_msl,windspeed_10m',
                 'start_date': api_date,
                 'end_date': api_date,
                 'timezone': 'Asia/Yekaterinburg'
@@ -63,18 +63,18 @@ def get_tomorrow_weather():
         data = response.json()
 
         weather_df = pd.DataFrame({
-            'W, kW': [None] * 24,
             'Час': [f'{i:02d}:00' for i in range(24)],
             'Температура (°C)': data['hourly']['temperature_2m'],
             'Влажность (%)': data['hourly']['relativehumidity_2m'],
-            'Давление (гПа)': data['hourly']['pressure_msl']
+            'Давление (гПа)': data['hourly']['pressure_msl'],
+            'Скорость ветра (м/с)': data['hourly']['windspeed_10m']
         })
 
         return weather_df, tomorrow_date
 
     except requests.exceptions.RequestException as e:
         flash(f'Ошибка при получении данных о погоде: {str(e)}', 'error')
-        empty_df = pd.DataFrame(columns=['W, kW', 'Час', 'Температура (°C)', 'Влажность (%)', 'Давление (гПа)'])
+        empty_df = pd.DataFrame(columns=['Час', 'Температура (°C)', 'Влажность (%)', 'Давление (гПа)', 'Скорость ветра (м/с)'])
         return empty_df, tomorrow_date
 
 

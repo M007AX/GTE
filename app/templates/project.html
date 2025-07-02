@@ -11,27 +11,87 @@
         <a href="{{ url_for('auth.logout') }}" class="btn btn-logout">Выйти</a>
     </div>
 
-    <table class="weather-table">
+    <table class="weather-table" id="weatherTable">
         <thead>
             <tr>
-                <th style="text-align: left; padding-left: 15px;">W, kW</th>
                 <th style="text-align: left; padding-left: 15px;">Час</th>
                 <th style="text-align: left; padding-left: 15px;">Температура (°C)</th>
                 <th style="text-align: left; padding-left: 15px;">Влажность (%)</th>
                 <th style="text-align: left; padding-left: 15px;">Давление (гПа)</th>
+                <th style="text-align: left; padding-left: 15px;">Скорость ветра (м/с)</th>
             </tr>
         </thead>
         <tbody>
             {% for record in weather_records %}
             <tr>
-                <td style="text-align: center;">{{ record['W, kW'] if record['W, kW'] is not none else '' }}</td>
                 <td style="text-align: center;">{{ record['Час'] }}</td>
-                <td style="text-align: center;">{{ record['Температура (°C)'] }}</td>
-                <td style="text-align: center;">{{ record['Влажность (%)'] }}</td>
-                <td style="text-align: center;">{{ record['Давление (гПа)'] }}</td>
+                <td style="text-align: center;" contenteditable="true" data-field="Температура (°C)" data-hour="{{ record['Час'] }}">
+                    {{ record['Температура (°C)'] }}
+                </td>
+                <td style="text-align: center;" contenteditable="true" data-field="Влажность (%)" data-hour="{{ record['Час'] }}">
+                    {{ record['Влажность (%)'] }}
+                </td>
+                <td style="text-align: center;" contenteditable="true" data-field="Давление (гПа)" data-hour="{{ record['Час'] }}">
+                    {{ record['Давление (гПа)'] }}
+                </td>
+                <td style="text-align: center;" contenteditable="true" data-field="Скорость ветра (м/с)" data-hour="{{ record['Час'] }}">
+                    {{ record['Скорость ветра (м/с)'] }}
+                </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const table = document.getElementById('weatherTable');
+
+    // Обработчик изменения ячеек
+    table.addEventListener('input', function(e) {
+        if (e.target.hasAttribute('contenteditable')) {
+            const hour = e.target.getAttribute('data-hour');
+            const field = e.target.getAttribute('data-field');
+            const newValue = e.target.textContent;
+
+            console.log(`Изменено: ${hour}, ${field} = ${newValue}`);
+
+            // Здесь можно добавить AJAX-запрос для сохранения изменений на сервере
+            // Например:
+            /*
+            fetch('/update-weather', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    hour: hour,
+                    field: field,
+                    value: newValue
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    alert('Ошибка при сохранении изменений');
+                    // Можно восстановить предыдущее значение
+                }
+            });
+            */
+        }
+    });
+
+    // Обработчик потери фокуса (для окончательного сохранения)
+    table.addEventListener('focusout', function(e) {
+        if (e.target.hasAttribute('contenteditable')) {
+            // Можно добавить дополнительную логику валидации
+            const value = e.target.textContent;
+            if (isNaN(value)) {
+                alert('Пожалуйста, введите числовое значение');
+                e.target.focus();
+            }
+        }
+    });
+});
+</script>
 {% endblock %}
