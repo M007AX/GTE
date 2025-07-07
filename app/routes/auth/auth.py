@@ -1,9 +1,10 @@
-from flask import Blueprint, render_template, redirect, url_for, request, session, flash
+from flask import Blueprint, render_template, redirect, url_for, request, session, flash, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import pytz
 import requests
 import pandas as pd
+
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -11,6 +12,14 @@ ADMIN_USER = {
     'username': 'admin',
     'password_hash': generate_password_hash('password123')  # Пароль: password123
 }
+
+LOCATIONS = [
+    {"name": "Location 1", "coords": (56.852528, 60.621444), "color": "#FFCCCB"},
+    {"name": "Location 2", "coords": (56.505694, 60.823194), "color": "#CBFFCC"},
+    {"name": "Location 3", "coords": (55.155083, 61.438750), "color": "#CCCBFF"},
+    {"name": "Location 4", "coords": (57.162361, 65.609639), "color": "#FFFFCB"},
+    {"name": "Location 5", "coords": (24, 54), "color": "#FFCBFF"}
+]
 
 
 @auth_bp.route('/')
@@ -40,42 +49,47 @@ def login():
 
 
 def get_tomorrow_weather():
-    """Получает прогноз погоды на завтра для Екатеринбурга"""
+    """Получает прогноз погоды на завтра для всех локаций"""
     ekb_tz = pytz.timezone('Asia/Yekaterinburg')
     now_ekb = datetime.now(ekb_tz)
 
     tomorrow_date = (now_ekb + timedelta(days=1)).strftime('%d.%m.%Y')
     api_date = (now_ekb + timedelta(days=1)).strftime('%Y-%m-%d')
 
-    try:
-        response = requests.get(
-            'https://api.open-meteo.com/v1/forecast',
-            params={
-                'latitude': 56.50,
-                'longitude': 60.35,
-                'hourly': 'temperature_2m,relativehumidity_2m,pressure_msl,windspeed_10m',
-                'start_date': api_date,
-                'end_date': api_date,
-                'timezone': 'Asia/Yekaterinburg'
-            }
-        )
-        response.raise_for_status()
-        data = response.json()
+    all_weather = []
 
-        weather_df = pd.DataFrame({
-            'Час': [f'{i:02d}:00' for i in range(24)],
-            'Температура (°C)': data['hourly']['temperature_2m'],
-            'Влажность (%)': data['hourly']['relativehumidity_2m'],
-            'Давление (гПа)': data['hourly']['pressure_msl'],
-            'Скорость ветра (м/с)': data['hourly']['windspeed_10m']
-        })
+    for loc in LOCATIONS:
+        try:
+            response = requests.get(
+                'https://api.open-meteo.com/v1/forecast',
+                params={
+                    'latitude': loc['coords'][0],
+                    'longitude': loc['coords'][1],
+                    'hourly': 'temperature_2m,relativehumidity_2m,pressure_msl,windspeed_10m',
+                    'start_date': api_date,
+                    'end_date': api_date,
+                    'timezone': 'Asia/Yekaterinburg'
+                }
+            )
+            response.raise_for_status()
+            data = response.json()
 
-        return weather_df, tomorrow_date
+            for hour in range(24):
+                all_weather.append({
+                    'Локация': loc['name'],
+                    'Цвет': loc['color'],
+                    'Час': f'{hour:02d}:00',
+                    'Температура (°C)': data['hourly']['temperature_2m'][hour],
+                    'Влажность (%)': data['hourly']['relativehumidity_2m'][hour],
+                    'Давление (гПа)': data['hourly']['pressure_msl'][hour],
+                    'Скорость ветра (м/с)': data['hourly']['windspeed_10m'][hour]
+                })
 
-    except requests.exceptions.RequestException as e:
-        flash(f'Ошибка при получении данных о погоде: {str(e)}', 'error')
-        empty_df = pd.DataFrame(columns=['Час', 'Температура (°C)', 'Влажность (%)', 'Давление (гПа)', 'Скорость ветра (м/с)'])
-        return empty_df, tomorrow_date
+        except requests.exceptions.RequestException as e:
+            flash(f'Ошибка при получении данных для {loc["name"]}: {str(e)}', 'error')
+            continue
+
+    return all_weather, tomorrow_date
 
 
 @auth_bp.route('/project')
@@ -84,20 +98,12 @@ def project():
         flash('Требуется авторизация', 'error')
         return redirect(url_for('auth.login'))
 
-    utc_now = datetime.utcnow()
-    ekaterinburg_tz = pytz.timezone('Asia/Yekaterinburg')
-    now_ekb = utc_now.replace(tzinfo=pytz.utc).astimezone(ekaterinburg_tz)
-
-    weather_df, forecast_date = get_tomorrow_weather()
-
-    # Преобразуем DataFrame в список словарей для удобного использования в шаблоне
-    weather_records = weather_df.to_dict('records')
+    weather_data, forecast_date = get_tomorrow_weather()
 
     return render_template('project.html',
-                           now=now_ekb,
-                           timedelta=timedelta,
-                           weather_records=weather_records,
-                           forecast_date=forecast_date)
+                           weather_data=weather_data,
+                           forecast_date=forecast_date,
+                           locations=LOCATIONS)
 
 
 @auth_bp.route('/logout')
@@ -105,3 +111,20 @@ def logout():
     session.pop('logged_in', None)
     flash('Вы вышли из системы', 'success')
     return redirect(url_for('auth.login'))
+
+
+@auth_bp.route('/save-weather-data', methods=['POST'])
+def save_weather_data():
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'message': 'Требуется авторизация'}), 401
+
+    try:
+        data = request.get_json()
+        changes = data.get('changes', [])
+
+        # Здесь должна быть логика сохранения изменений в ваше хранилище данных
+        # Например, обновление weather_data или запись в базу данных
+
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
