@@ -16,12 +16,13 @@
         <table class="weather-table">
             <thead>
                 <tr>
-                    <th rowspan="2">Час</th>
+                    <th class="sticky-column">Час</th>
                     {% for location in locations %}
                     <th colspan="4" style="background-color: {{ location.color }}">{{ location.name }}<br>({{ location.coords[0]|round(4) }}°N, {{ location.coords[1]|round(4) }}°E)</th>
                     {% endfor %}
                 </tr>
                 <tr>
+                    <th class="sticky-column"></th>
                     {% for location in locations %}
                     <th style="background-color: {{ location.color }}">Температура (°C)</th>
                     <th style="background-color: {{ location.color }}">Влажность (%)</th>
@@ -33,7 +34,7 @@
             <tbody>
                 {% for hour in range(24) %}
                 <tr>
-                    <td>{{ "%02d:00" % hour }}</td>
+                    <td class="sticky-column">{{ "%02d:00" % hour }}-{{ "%02d:00" % (hour+1) if hour < 23 else "00:00" }}</td>
                     {% for location in locations %}
                         {% set loc_data = weather_data|selectattr('Локация', 'equalto', location.name)|selectattr('Час', 'equalto', "%02d:00" % hour)|list %}
                         {% if loc_data %}
@@ -59,40 +60,56 @@
     .table-container {
         width: 100%;
         overflow-x: auto;
+        position: relative;
         margin-bottom: 20px;
     }
+
     .weather-table {
-        width: 100%;
         border-collapse: collapse;
-        min-width: 800px;
+        min-width: 100%;
     }
+
     .weather-table th, .weather-table td {
         border: 1px solid #ddd;
         padding: 8px;
         text-align: center;
+        min-width: 100px;
+        box-sizing: border-box;
     }
+
+    .sticky-column {
+        position: sticky;
+        left: 0;
+        background-color: white;
+        z-index: 2;
+        box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    }
+
     .weather-table th {
         position: sticky;
         top: 0;
+        background-color: #f2f2f2;
+        z-index: 3;
     }
-    .weather-table tr:nth-child(even) {
-        background-color: #f9f9f9;
+
+    .weather-table th.sticky-column {
+        z-index: 4;
     }
+
     .editable {
-        width: 80px;
+        width: 100%;
         border: 1px solid #ccc;
         border-radius: 3px;
         padding: 3px;
         text-align: center;
         background-color: rgba(255, 255, 255, 0.7);
+        box-sizing: border-box;
     }
+
     .btn-save {
         background-color: #4CAF50;
         color: white;
         margin-left: 10px;
-    }
-    .btn-save:hover {
-        background-color: #45a049;
     }
 </style>
 
@@ -127,7 +144,6 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.success) {
                     alert('Изменения успешно сохранены!');
-                    // Обновляем оригинальные значения
                     inputs.forEach(input => {
                         input.setAttribute('data-original-value', input.value);
                     });
@@ -144,7 +160,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Сохраняем оригинальные значения при загрузке
     document.querySelectorAll('.editable').forEach(input => {
         input.setAttribute('data-original-value', input.value);
     });

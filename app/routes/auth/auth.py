@@ -14,11 +14,18 @@ ADMIN_USER = {
 }
 
 LOCATIONS = [
-    {"name": "Location 1", "coords": (56.852528, 60.621444), "color": "#FFCCCB"},
-    {"name": "Location 2", "coords": (56.505694, 60.823194), "color": "#CBFFCC"},
-    {"name": "Location 3", "coords": (55.155083, 61.438750), "color": "#CCCBFF"},
-    {"name": "Location 4", "coords": (57.162361, 65.609639), "color": "#FFFFCB"},
-    {"name": "Location 5", "coords": (24, 54), "color": "#FFCBFF"}
+    {"name": "Невьянск", "coords": (57.491225, 60.218251), "color": "#FFCCCB"},
+    {"name": "Кировград", "coords": (57.431916, 60.062321), "color": "#CBFFCC"},
+    {"name": "Верх-Нейвинский", "coords": (57.265589, 60.131644), "color": "#CCCBFF"},
+    {"name": "Арамиль", "coords": (56.700276, 60.828647), "color": "#FFFFCB"},
+    {"name": "Нижняя Салда", "coords": (58.071490, 60.716331), "color": "#FFCBFF"},
+    {"name": "Нижний Тагил", "coords": (57.907562, 59.971474), "color": "#FFD8CB"},
+    {"name": "Верхняя Салда", "coords": (58.050898, 60.546253), "color": "#CBFFD8"},
+    {"name": "Сысерть", "coords": (56.502286, 60.810034), "color": "#D8CBFF"},
+    {"name": "Верхняя Сысерть", "coords": (56.438030, 60.755165), "color": "#FFEECB"},
+    {"name": "с. Черданцево", "coords": (56.600331, 60.946263), "color": "#CBEEFF"},
+    {"name": "д. Токарево", "coords": (56.613470, 60.947746), "color": "#EECBFF"},
+    {"name": "Первоуральск", "coords": (56.905819, 59.943267), "color": "#CBFFEE"}
 ]
 
 
