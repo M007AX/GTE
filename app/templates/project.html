@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="project-container">
-    <h1>Прогноз на {{ forecast_date }}</h1>
+    <h1>Прогноз на {{ date_info.date }}</h1>
 
     <div class="weather-controls">
         <a href="{{ url_for('auth.project') }}" class="btn btn-refresh">Обновить данные</a>
@@ -17,12 +17,18 @@
             <thead>
                 <tr>
                     <th class="sticky-column">Час</th>
+                    <th style="background-color: #f2f2f2">День недели</th>
+                    <th style="background-color: #f2f2f2">Неделя года</th>
+                    <th style="background-color: #f2f2f2">Рабочий день</th>
                     {% for location in locations %}
                     <th colspan="4" style="background-color: {{ location.color }}">{{ location.name }}<br>({{ location.coords[0]|round(4) }}°N, {{ location.coords[1]|round(4) }}°E)</th>
                     {% endfor %}
                 </tr>
                 <tr>
                     <th class="sticky-column"></th>
+                    <th style="background-color: #f2f2f2"></th>
+                    <th style="background-color: #f2f2f2"></th>
+                    <th style="background-color: #f2f2f2"></th>
                     {% for location in locations %}
                     <th style="background-color: {{ location.color }}">Температура (°C)</th>
                     <th style="background-color: {{ location.color }}">Влажность (%)</th>
@@ -35,6 +41,14 @@
                 {% for hour in range(24) %}
                 <tr>
                     <td class="sticky-column">{{ "%02d:00" % hour }}-{{ "%02d:00" % (hour+1) if hour < 23 else "00:00" }}</td>
+                    <td style="background-color: #f2f2f2">{{ date_info.day_of_week }}</td>
+                    <td style="background-color: #f2f2f2">{{ date_info.week_of_year }}</td>
+                    <td style="background-color: #f2f2f2">
+                        <select class="editable-workday" data-hour="{{ "%02d:00" % hour }}" style="width: 100%">
+                            <option value="1" {% if date_info.is_workday == 1 %}selected{% endif %}>Рабочий (1)</option>
+                            <option value="0" {% if date_info.is_workday == 0 %}selected{% endif %}>Нерабочий (0)</option>
+                        </select>
+                    </td>
                     {% for location in locations %}
                         {% set loc_data = weather_data|selectattr('Локация', 'equalto', location.name)|selectattr('Час', 'equalto', "%02d:00" % hour)|list %}
                         {% if loc_data %}
@@ -57,6 +71,42 @@
 </div>
 
 <style>
+    .project-container {
+        padding: 20px;
+        max-width: 100%;
+        overflow-x: auto;
+    }
+
+    .weather-controls {
+        margin: 20px 0;
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 14px;
+    }
+
+    .btn-refresh {
+        background-color: #2196F3;
+        color: white;
+    }
+
+    .btn-logout {
+        background-color: #f44336;
+        color: white;
+    }
+
+    .btn-save {
+        background-color: #4CAF50;
+        color: white;
+    }
+
     .table-container {
         width: 100%;
         overflow-x: auto;
@@ -105,12 +155,6 @@
         background-color: rgba(255, 255, 255, 0.7);
         box-sizing: border-box;
     }
-
-    .btn-save {
-        background-color: #4CAF50;
-        color: white;
-        margin-left: 10px;
-    }
 </style>
 
 <script>
@@ -118,16 +162,28 @@ document.addEventListener('DOMContentLoaded', function() {
     // Обработчик сохранения изменений
     document.getElementById('save-changes').addEventListener('click', function() {
         const changes = [];
-        const inputs = document.querySelectorAll('.editable');
-
-        inputs.forEach(input => {
+        // Собираем изменения погоды
+        document.querySelectorAll('.editable').forEach(input => {
             const originalValue = input.getAttribute('data-original-value');
             if (originalValue !== input.value) {
                 changes.push({
+                    type: 'weather',
                     location: input.dataset.location,
                     hour: input.dataset.hour,
                     param: input.dataset.param,
                     value: input.value
+                });
+            }
+        });
+
+        // Собираем изменения рабочих дней
+        document.querySelectorAll('.editable-workday').forEach(select => {
+            const originalValue = select.getAttribute('data-original-value');
+            if (originalValue !== select.value) {
+                changes.push({
+                    type: 'workday',
+                    hour: select.dataset.hour,
+                    value: parseInt(select.value)
                 });
             }
         });
@@ -144,8 +200,12 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.success) {
                     alert('Изменения успешно сохранены!');
-                    inputs.forEach(input => {
+                    // Обновляем оригинальные значения
+                    document.querySelectorAll('.editable').forEach(input => {
                         input.setAttribute('data-original-value', input.value);
+                    });
+                    document.querySelectorAll('.editable-workday').forEach(select => {
+                        select.setAttribute('data-original-value', select.value);
                     });
                 } else {
                     alert('Ошибка при сохранении: ' + (data.message || 'Неизвестная ошибка'));
@@ -160,8 +220,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Инициализация оригинальных значений
     document.querySelectorAll('.editable').forEach(input => {
         input.setAttribute('data-original-value', input.value);
+    });
+    document.querySelectorAll('.editable-workday').forEach(select => {
+        select.setAttribute('data-original-value', select.value);
     });
 });
 </script>

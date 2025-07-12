@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import pytz
 import requests
 import pandas as pd
-
+from .date_utils import get_date_info, get_tomorrow_date, parse_date
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -28,11 +28,9 @@ LOCATIONS = [
     {"name": "Первоуральск", "coords": (56.905819, 59.943267), "color": "#CBFFEE"}
 ]
 
-
 @auth_bp.route('/')
 def index():
     return redirect(url_for('auth.login'))
-
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -54,14 +52,11 @@ def login():
 
     return render_template('auth/login.html')
 
-
 def get_tomorrow_weather():
     """Получает прогноз погоды на завтра для всех локаций"""
-    ekb_tz = pytz.timezone('Asia/Yekaterinburg')
-    now_ekb = datetime.now(ekb_tz)
-
-    tomorrow_date = (now_ekb + timedelta(days=1)).strftime('%d.%m.%Y')
-    api_date = (now_ekb + timedelta(days=1)).strftime('%Y-%m-%d')
+    tomorrow_date = get_tomorrow_date()
+    api_date = tomorrow_date.strftime('%Y-%m-%d')
+    display_date = tomorrow_date.strftime('%d.%m.%Y')
 
     all_weather = []
 
@@ -96,8 +91,7 @@ def get_tomorrow_weather():
             flash(f'Ошибка при получении данных для {loc["name"]}: {str(e)}', 'error')
             continue
 
-    return all_weather, tomorrow_date
-
+    return all_weather, display_date
 
 @auth_bp.route('/project')
 def project():
@@ -106,19 +100,19 @@ def project():
         return redirect(url_for('auth.login'))
 
     weather_data, forecast_date = get_tomorrow_weather()
+    date_info = get_date_info(parse_date(forecast_date))
 
     return render_template('project.html',
-                           weather_data=weather_data,
-                           forecast_date=forecast_date,
-                           locations=LOCATIONS)
-
+                         weather_data=weather_data,
+                         forecast_date=forecast_date,
+                         locations=LOCATIONS,
+                         date_info=date_info)
 
 @auth_bp.route('/logout')
 def logout():
     session.pop('logged_in', None)
     flash('Вы вышли из системы', 'success')
     return redirect(url_for('auth.login'))
-
 
 @auth_bp.route('/save-weather-data', methods=['POST'])
 def save_weather_data():
