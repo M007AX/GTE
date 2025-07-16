@@ -7,9 +7,14 @@
     <h1>Прогноз на {{ date_info.date }}</h1>
 
     <div class="weather-controls">
-        <a href="{{ url_for('auth.project') }}" class="btn btn-refresh">Обновить данные</a>
-        <a href="{{ url_for('auth.logout') }}" class="btn btn-logout">Выйти</a>
-        <button id="save-changes" class="btn btn-save">Сохранить изменения</button>
+        <div class="left-controls">
+            <a href="{{ url_for('auth.project') }}" class="btn btn-refresh">Обновить данные</a>
+            <button id="save-changes" class="btn btn-save">Сохранить</button>
+        </div>
+        <div class="right-controls">
+            <a href="{{ url_for('auth.logout') }}" class="btn btn-logout">Выйти</a>
+            <button id="continue-btn" class="btn btn-continue">Далее →</button>
+        </div>
     </div>
 
     <div class="table-container">
@@ -70,163 +75,5 @@
     </div>
 </div>
 
-<style>
-    .project-container {
-        padding: 20px;
-        max-width: 100%;
-        overflow-x: auto;
-    }
-
-    .weather-controls {
-        margin: 20px 0;
-        display: flex;
-        gap: 10px;
-    }
-
-    .btn {
-        padding: 8px 16px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        text-decoration: none;
-        font-size: 14px;
-    }
-
-    .btn-refresh {
-        background-color: #2196F3;
-        color: white;
-    }
-
-    .btn-logout {
-        background-color: #f44336;
-        color: white;
-    }
-
-    .btn-save {
-        background-color: #4CAF50;
-        color: white;
-    }
-
-    .table-container {
-        width: 100%;
-        overflow-x: auto;
-        position: relative;
-        margin-bottom: 20px;
-    }
-
-    .weather-table {
-        border-collapse: collapse;
-        min-width: 100%;
-    }
-
-    .weather-table th, .weather-table td {
-        border: 1px solid #ddd;
-        padding: 8px;
-        text-align: center;
-        min-width: 100px;
-        box-sizing: border-box;
-    }
-
-    .sticky-column {
-        position: sticky;
-        left: 0;
-        background-color: white;
-        z-index: 2;
-        box-shadow: 2px 0 5px rgba(0,0,0,0.1);
-    }
-
-    .weather-table th {
-        position: sticky;
-        top: 0;
-        background-color: #f2f2f2;
-        z-index: 3;
-    }
-
-    .weather-table th.sticky-column {
-        z-index: 4;
-    }
-
-    .editable {
-        width: 100%;
-        border: 1px solid #ccc;
-        border-radius: 3px;
-        padding: 3px;
-        text-align: center;
-        background-color: rgba(255, 255, 255, 0.7);
-        box-sizing: border-box;
-    }
-</style>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Обработчик сохранения изменений
-    document.getElementById('save-changes').addEventListener('click', function() {
-        const changes = [];
-        // Собираем изменения погоды
-        document.querySelectorAll('.editable').forEach(input => {
-            const originalValue = input.getAttribute('data-original-value');
-            if (originalValue !== input.value) {
-                changes.push({
-                    type: 'weather',
-                    location: input.dataset.location,
-                    hour: input.dataset.hour,
-                    param: input.dataset.param,
-                    value: input.value
-                });
-            }
-        });
-
-        // Собираем изменения рабочих дней
-        document.querySelectorAll('.editable-workday').forEach(select => {
-            const originalValue = select.getAttribute('data-original-value');
-            if (originalValue !== select.value) {
-                changes.push({
-                    type: 'workday',
-                    hour: select.dataset.hour,
-                    value: parseInt(select.value)
-                });
-            }
-        });
-
-        if (changes.length > 0) {
-            fetch('/save-weather-data', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ changes: changes })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('Изменения успешно сохранены!');
-                    // Обновляем оригинальные значения
-                    document.querySelectorAll('.editable').forEach(input => {
-                        input.setAttribute('data-original-value', input.value);
-                    });
-                    document.querySelectorAll('.editable-workday').forEach(select => {
-                        select.setAttribute('data-original-value', select.value);
-                    });
-                } else {
-                    alert('Ошибка при сохранении: ' + (data.message || 'Неизвестная ошибка'));
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Ошибка при сохранении изменений');
-            });
-        } else {
-            alert('Нет изменений для сохранения');
-        }
-    });
-
-    // Инициализация оригинальных значений
-    document.querySelectorAll('.editable').forEach(input => {
-        input.setAttribute('data-original-value', input.value);
-    });
-    document.querySelectorAll('.editable-workday').forEach(select => {
-        select.setAttribute('data-original-value', select.value);
-    });
-});
-</script>
+<script src="{{ url_for('static', filename='js/project.js') }}"></script>
 {% endblock %}

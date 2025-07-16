@@ -324,3 +324,167 @@ a {
 .weather-table tr:hover td {
     background-color: #e9e9e9;
 }
+
+.project-container {
+    padding: 20px;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.weather-controls {
+    margin: 20px 0;
+    display: flex;
+    gap: 10px;
+}
+
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.btn-refresh {
+    background-color: #2196F3;
+    color: white;
+}
+
+.btn-logout {
+    background-color: #f44336;
+    color: white;
+}
+
+.btn-save {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.weather-table {
+    border-collapse: collapse;
+    min-width: 100%;
+}
+
+.weather-table th, .weather-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: center;
+    min-width: 100px;
+    box-sizing: border-box;
+}
+
+.sticky-column {
+    position: sticky;
+    left: 0;
+    background-color: white;
+    z-index: 2;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+}
+
+.weather-table th {
+    position: sticky;
+    top: 0;
+    background-color: #f2f2f2;
+    z-index: 3;
+}
+
+.weather-table th.sticky-column {
+    z-index: 4;
+}
+
+.editable {
+    width: 100%;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    padding: 3px;
+    text-align: center;
+    background-color: rgba(255, 255, 255, 0.7);
+    box-sizing: border-box;
+}
+
+.weather-controls {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.left-controls, .right-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.btn-refresh {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.btn-save {
+    background-color: #2196F3;
+    color: white;
+}
+
+.btn-logout {
+    background-color: #f44336;
+    color: white;
+}
+
+.btn-continue {
+    background-color: #9C27B0;
+    color: white;
+}
+
+.btn:hover {
+    opacity: 0.9;
+}
+
+
+.predict-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.predict-table {
+    width: 100%;
+    margin-bottom: 30px;
+}
+
+.predict-table th, .predict-table td {
+    padding: 12px;
+    text-align: center;
+    border: 1px solid #ddd;
+}
+
+.chart-container {
+    margin-top: 40px;
+    height: 400px;
+}
+
+.alert {
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+}
+
+.alert-danger {
+    color: #a94442;
+    background-color: #f2dede;
+    border-color: #ebccd1;
+}

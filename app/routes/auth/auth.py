@@ -5,6 +5,75 @@ import pytz
 import requests
 import pandas as pd
 from .date_utils import get_date_info, get_tomorrow_date, parse_date
+import joblib
+import numpy as np
+import os
+from pathlib import Path
+import xgboost
+
+# Получаем абсолютный путь к директории с auth.py
+current_dir = Path(__file__).parent
+MODEL_PATH = current_dir / 'xgboost_model.joblib'
+
+# Проверяем существование файла
+if not MODEL_PATH.exists():
+    raise FileNotFoundError(f"Model file not found at {MODEL_PATH}")
+
+# Загружаем модель
+MODEL = joblib.load(MODEL_PATH)
+
+
+def prepare_features(weather_df):
+    """Подготовка фичей для модели с проверкой данных"""
+    features = []
+
+    # Проверяем наличие всех необходимых столбцов
+    required_columns = ['Час', 'День_недели', 'Неделя_года', 'Рабочий_день']
+    for loc in LOCATIONS:
+        required_columns.extend([
+            f"{loc['name']}_temp",
+            f"{loc['name']}_humidity",
+            f"{loc['name']}_pressure",
+            f"{loc['name']}_wind"
+        ])
+
+    missing_columns = [col for col in required_columns if col not in weather_df.columns]
+    if missing_columns:
+        raise ValueError(f"Отсутствуют необходимые столбцы: {missing_columns}")
+
+    # Заменяем пропущенные значения (если есть '-')
+    weather_df = weather_df.replace('-', np.nan)
+    weather_df = weather_df.fillna(0)  # Или другое подходящее значение
+
+    for hour in range(24):
+        # Получаем данные для текущего часа
+        current_hour = hour + 1 if hour < 23 else 0
+        hour_data = weather_df[weather_df['Час'] == current_hour]
+
+        if hour_data.empty:
+            features.append([0] * len(required_columns))  # Заполняем нулями, если нет данных
+            continue
+
+        # Собираем фичи в правильном порядке
+        hour_feat = [
+            hour_data['Час'].values[0],
+            hour_data['День_недели'].values[0],
+            hour_data['Неделя_года'].values[0],
+            hour_data['Рабочий_день'].values[0]
+        ]
+
+        # Добавляем погодные данные для всех локаций
+        for loc in LOCATIONS:
+            hour_feat += [
+                hour_data[f"{loc['name']}_temp"].values[0],
+                hour_data[f"{loc['name']}_humidity"].values[0],
+                hour_data[f"{loc['name']}_pressure"].values[0],
+                hour_data[f"{loc['name']}_wind"].values[0]
+            ]
+
+        features.append(hour_feat)
+
+    return np.array(features)
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -114,18 +183,116 @@ def logout():
     flash('Вы вышли из системы', 'success')
     return redirect(url_for('auth.login'))
 
-@auth_bp.route('/save-weather-data', methods=['POST'])
-def save_weather_data():
+
+@auth_bp.route('/save-and-predict', methods=['POST'])
+def save_and_predict():
     if not session.get('logged_in'):
         return jsonify({'success': False, 'message': 'Требуется авторизация'}), 401
 
     try:
+        # 1. Получаем данные из запроса
         data = request.get_json()
-        changes = data.get('changes', [])
+        if not data:
+            return jsonify({'success': False, 'message': 'Нет данных для сохранения'}), 400
 
-        # Здесь должна быть логика сохранения изменений в ваше хранилище данных
-        # Например, обновление weather_data или запись в базу данных
+        weather_data = data.get('weather', [])
+        workdays_data = data.get('workdays', [])
 
-        return jsonify({'success': True})
+        # 2. Создаем структуру для сохранения
+        hours = list(range(1, 24)) + [0]
+        result = {
+            'Час': hours,
+            'День_недели': [datetime.now().weekday()] * 24,
+            'Неделя_года': [datetime.now().isocalendar()[1]] * 24,
+            'Рабочий_день': [1] * 24
+        }
+
+        # 3. Инициализируем данные для всех локаций
+        for loc in LOCATIONS:
+            for param in ['temp', 'humidity', 'pressure', 'wind']:
+                result[f"{loc['name']}_{param}"] = [0.0] * 24  # Инициализируем нулями
+
+        # 4. Заполняем данные
+        for item in weather_data:
+            hour = item['hour']
+            param = item['param']
+            loc_name = item['location']
+            column_name = f"{loc_name}_{param}"
+
+            if column_name in result:
+                try:
+                    idx = hour - 1 if hour != 0 else 23
+                    value = float(item['value']) if item['value'] != '-' else 0.0
+                    result[column_name][idx] = value
+                except ValueError:
+                    result[column_name][idx] = 0.0
+
+        for item in workdays_data:
+            hour = item['hour']
+            idx = hour - 1 if hour != 0 else 23
+            result['Рабочий_день'][idx] = int(item['value'])
+
+        # 5. Сохраняем в CSV
+        df = pd.DataFrame(result)
+        os.makedirs('app/predict', exist_ok=True)
+        csv_path = os.path.join('app/predict', 'data.csv')
+        df.to_csv(csv_path, index=False, encoding='utf-8')
+
+        # 6. Подготавливаем данные для модели
+        X = prepare_features(df)
+
+        # 7. Делаем предсказания
+        predictions = MODEL.predict(X)
+
+        # 8. Форматируем результат
+        formatted_predictions = [
+            {'hour': h, 'prediction': round(float(pred), 2)}
+            for h, pred in zip(hours, predictions)
+        ]
+
+        return jsonify({
+            'success': True,
+            'message': 'Данные сохранены и обработаны',
+            'predictions': formatted_predictions
+        })
+
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
+        print(f"Ошибка в save_and_predict: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Ошибка при сохранении: {str(e)}'
+        }), 500
+
+
+@auth_bp.route('/predict')
+def predict():
+    if not session.get('logged_in'):
+        return redirect(url_for('auth.login'))
+
+    try:
+        # 1. Загружаем сохраненные данные
+        data_path = os.path.join('app', 'predict', 'data.csv')
+        if not os.path.exists(data_path):
+            raise FileNotFoundError("Нет данных для прогнозирования")
+
+        df = pd.read_csv(data_path)
+
+        # 2. Подготавливаем фичи
+        X = prepare_features(df)
+
+        # 3. Делаем предсказания
+        predictions = MODEL.predict(X)
+
+        # 4. Форматируем результат
+        results = []
+        for i, hour in enumerate(list(range(1, 24)) + [0]):
+            results.append({
+                'hour': hour,
+                'prediction': round(float(predictions[i]), 2)
+            })
+
+        return render_template('predict.html', predictions=results)
+
+    except Exception as e:
+        print(f"Ошибка прогнозирования: {str(e)}")
+        return render_template('predict.html', error=str(e))

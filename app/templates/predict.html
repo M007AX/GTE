@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}Прогноз потребления{% endblock %}
+
+{% block content %}
+<div class="predict-container">
+    <div class="predict-header">
+        <h1>Прогноз потребления электроэнергии</h1>
+        <div class="predict-buttons">
+            <a href="{{ url_for('auth.project') }}" class="btn btn-back">Назад</a>
+            <a href="{{ url_for('auth.logout') }}" class="btn btn-logout">Выйти</a>
+        </div>
+    </div>
+
+    {% if error %}
+        <div class="alert alert-danger">{{ error }}</div>
+    {% else %}
+        <div class="table-container">
+            <table class="predict-table">
+                <thead>
+                    <tr>
+                        <th>Час</th>
+                        <th>Прогноз потребления (кВт·ч)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in predictions %}
+                    <tr>
+                        <td>{{ item.hour }}</td>
+                        <td>{{ item.prediction }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="consumptionChart"></canvas>
+        </div>
+    {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('consumptionChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: {{ predictions|map(attribute='hour')|list|tojson }},
+                datasets: [{
+                    label: 'Потребление электроэнергии',
+                    data: {{ predictions|map(attribute='prediction')|list|tojson }},
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        title: { display: true, text: 'кВт·ч' }
+                    }
+                }
+            }
+        });
+    });
+</script>
+
+<style>
+    .predict-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .predict-buttons {
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn {
+        padding: 8px 16px;
+        border-radius: 4px;
+        text-decoration: none;
+        font-weight: bold;
+        transition: background-color 0.3s;
+    }
+
+    .btn-back {
+        background-color: #6c757d;
+        color: white;
+    }
+
+    .btn-back:hover {
+        background-color: #5a6268;
+    }
+
+    .btn-logout {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .btn-logout:hover {
+        background-color: #c82333;
+    }
+</style>
+{% endblock %}
