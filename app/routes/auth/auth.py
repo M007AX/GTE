@@ -9,7 +9,7 @@ import joblib
 import numpy as np
 import os
 from pathlib import Path
-import xgboost
+
 
 # Получаем абсолютный путь к директории с auth.py
 current_dir = Path(__file__).parent
