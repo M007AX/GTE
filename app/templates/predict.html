@@ -19,14 +19,18 @@
             <table class="predict-table">
                 <thead>
                     <tr>
-                        <th>Час</th>
+                        <th>Временной интервал</th>
                         <th>Прогноз потребления (кВт·ч)</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in predictions %}
                     <tr>
-                        <td>{{ item.hour }}</td>
+                        <td>
+                            {% set prev_hour = (item.hour - 1) % 24 %}
+                            {% set current_hour = item.hour %}
+                            {{ "%02d:00-%02d:00"|format(prev_hour, current_hour) }}
+                        </td>
                         <td>{{ item.prediction }}</td>
                     </tr>
                     {% endfor %}
@@ -44,23 +48,59 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const ctx = document.getElementById('consumptionChart').getContext('2d');
+
+        // Метки для оси X: 0, 1, 2, ..., 23, 0
+        const labels = [];
+        for (let i = 0; i <= 24; i++) {
+            labels.push(i % 24);
+        }
+
         new Chart(ctx, {
-            type: 'line',
+            type: 'bar',
             data: {
-                labels: {{ predictions|map(attribute='hour')|list|tojson }},
+                labels: labels,
                 datasets: [{
                     label: 'Потребление электроэнергии',
                     data: {{ predictions|map(attribute='prediction')|list|tojson }},
+                    backgroundColor: 'rgba(75, 192, 192, 0.7)',
                     borderColor: 'rgb(75, 192, 192)',
-                    tension: 0.1
+                    borderWidth: 1
                 }]
             },
             options: {
                 scales: {
                     y: {
-                        title: { display: true, text: 'кВт·ч' }
+                        title: { display: true, text: 'кВт·ч' },
+                        beginAtZero: true
+                    },
+                    x: {
+                        title: { display: true, text: 'Часы' },
+                        ticks: {
+                            autoSkip: false
+                        }
                     }
-                }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: function() {
+                                return ''; // Убираем заголовок (числа 0,1,2...)
+                            },
+                            label: function(context) {
+                                const hour = context.dataIndex;
+                                const prev_hour = hour % 24;
+                                const current_hour = (hour + 1) % 24; // Добавляем +1 к текущему часу
+                                const timeRange = `${prev_hour.toString().padStart(2, '0')}:00-${current_hour.toString().padStart(2, '0')}:00`;
+                                return `${timeRange}: ${context.parsed.y} кВт·ч`;
+                            }
+                        }
+                    }
+                },
+                barPercentage: 0.9,
+                categoryPercentage: 0.9
             }
         });
     });
@@ -103,6 +143,32 @@
 
     .btn-logout:hover {
         background-color: #c82333;
+    }
+
+    .chart-container {
+        margin-top: 30px;
+        height: 500px;
+    }
+
+    .predict-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+
+    .predict-table th, .predict-table td {
+        padding: 12px;
+        text-align: center;
+        border: 1px solid #ddd;
+    }
+
+    .predict-table th {
+        background-color: #f2f2f2;
+        font-weight: bold;
+    }
+
+    .predict-table tr:nth-child(even) {
+        background-color: #f9f9f9;
     }
 </style>
 {% endblock %}
