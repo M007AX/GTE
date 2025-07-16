@@ -49,11 +49,11 @@
     document.addEventListener('DOMContentLoaded', function() {
         const ctx = document.getElementById('consumptionChart').getContext('2d');
 
-        // Метки для оси X: 0, 1, 2, ..., 23, 0
-        const labels = [];
-        for (let i = 0; i <= 24; i++) {
-            labels.push(i % 24);
-        }
+        // Данные для графика
+        const chartData = {{ predictions|map(attribute='prediction')|list|tojson }};
+
+        // Создаем метки для 24 часов (0-23)
+        const labels = Array.from({length: 24}, (_, i) => i);
 
         new Chart(ctx, {
             type: 'bar',
@@ -61,7 +61,7 @@
                 labels: labels,
                 datasets: [{
                     label: 'Потребление электроэнергии',
-                    data: {{ predictions|map(attribute='prediction')|list|tojson }},
+                    data: chartData,
                     backgroundColor: 'rgba(75, 192, 192, 0.7)',
                     borderColor: 'rgb(75, 192, 192)',
                     borderWidth: 1
@@ -71,13 +71,32 @@
                 scales: {
                     y: {
                         title: { display: true, text: 'кВт·ч' },
-                        beginAtZero: true
+                        beginAtZero: true //поменять, если надо не из нуля
                     },
                     x: {
                         title: { display: true, text: 'Часы' },
+                        type: 'linear',
+                        offset: true,
                         ticks: {
-                            autoSkip: false
-                        }
+                            stepSize: 1,
+                            autoSkip: false,
+                            callback: function(value) {
+                                // Добавляем 0 в начале (при value = -0.5)
+                                if (value === -0.5) return '0';
+                                // Добавляем 0 в конце (при value = 23.5)
+                                if (value === 23.5) return '0';
+                                // Для остальных значений добавляем +1 и смещаем на 0.5
+                                if (Number.isInteger(value - 0.5) && value >= 0.5 && value < 23.5) {
+                                    return (value - 0.5) + 1;
+                                }
+                                return null;
+                            }
+                        },
+                        grid: {
+                            offset: false
+                        },
+                        min: -0.5,
+                        max: 23.5
                     }
                 },
                 plugins: {
@@ -87,12 +106,12 @@
                     tooltip: {
                         callbacks: {
                             title: function() {
-                                return ''; // Убираем заголовок (числа 0,1,2...)
+                                return '';
                             },
                             label: function(context) {
                                 const hour = context.dataIndex;
                                 const prev_hour = hour % 24;
-                                const current_hour = (hour + 1) % 24; // Добавляем +1 к текущему часу
+                                const current_hour = (hour + 1) % 24;
                                 const timeRange = `${prev_hour.toString().padStart(2, '0')}:00-${current_hour.toString().padStart(2, '0')}:00`;
                                 return `${timeRange}: ${context.parsed.y} кВт·ч`;
                             }
@@ -100,7 +119,14 @@
                     }
                 },
                 barPercentage: 0.9,
-                categoryPercentage: 0.9
+                categoryPercentage: 0.9,
+                datasets: {
+                    bar: {
+                        barThickness: 'flex',
+                        categoryPercentage: 0.9,
+                        barPercentage: 0.9
+                    }
+                }
             }
         });
     });

@@ -200,10 +200,12 @@ def save_and_predict():
 
         # 2. Создаем структуру для сохранения
         hours = list(range(1, 24)) + [0]
+        now = datetime.now()
+        tomorrow = now + timedelta(days=1)  # Получаем дату на завтра
         result = {
             'Час': hours,
-            'День_недели': [datetime.now().weekday()] * 24,
-            'Неделя_года': [datetime.now().isocalendar()[1]] * 24,
+            'День_недели': [tomorrow.weekday()] * 24,  # Используем день недели на завтра
+            'Неделя_года': [tomorrow.isocalendar()[1]] * 24,  # И неделю года на завтра
             'Рабочий_день': [1] * 24
         }
 
