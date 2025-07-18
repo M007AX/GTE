@@ -5,15 +5,21 @@
 {% block content %}
 <div class="project-container">
     <h1>Прогноз на {{ date_info.date }}</h1>
+    <p>День недели: {{ date_info.day_of_week }} (0-пн, 6-вс), Неделя года: {{ date_info.week_of_year }}</p>
 
     <div class="weather-controls">
         <div class="left-controls">
             <a href="{{ url_for('auth.project') }}" class="btn btn-refresh">Обновить данные</a>
             <button id="save-changes" class="btn btn-save">Сохранить</button>
+            <!-- Измененная форма для загрузки файла -->
+            <form action="{{ url_for('auth.project') }}" method="post" enctype="multipart/form-data" style="display: inline;">
+                <input type="file" name="weather_file" accept=".csv" required>
+                <button type="submit" class="btn btn-upload">Загрузить CSV</button>
+            </form>
         </div>
         <div class="right-controls">
             <a href="{{ url_for('auth.logout') }}" class="btn btn-logout">Выйти</a>
-            <button id="continue-btn" class="btn btn-continue">Далее →</button>
+            <a href="{{ url_for('auth.predict') }}" class="btn btn-continue">Далее →</a>
         </div>
     </div>
 
