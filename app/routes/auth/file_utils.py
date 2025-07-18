@@ -62,7 +62,9 @@ def process_weather_file(file):
                 try:
                     forecast_date = datetime.strptime(date_str, '%d.%m.%Y').strftime('%d.%m.%Y')
                 except ValueError:
-                    forecast_date = datetime.now().strftime('%d.%m.%Y')
+                    # Используем завтрашнюю дату по умолчанию вместо текущей
+                    from .date_utils import get_tomorrow_date
+                    forecast_date = get_tomorrow_date().strftime('%d.%m.%Y')
 
                 return weather_data, forecast_date
 
