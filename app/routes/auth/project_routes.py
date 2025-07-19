@@ -25,6 +25,33 @@ def project():
     date_info = get_date_info(default_date)
     weather_data = None
 
+    # Проверяем наличие сохранённых данных для этой даты
+    date_folder = os.path.join(UPLOAD_FOLDER, default_date.strftime('%d.%m.%Y'))
+    csv_path = os.path.join(date_folder, 'features_table.csv')
+
+    if os.path.exists(csv_path):
+        try:
+            # Загружаем данные из CSV
+            df = pd.read_csv(csv_path)
+
+            # Преобразуем данные в формат, совместимый с шаблоном
+            weather_data = []
+            for _, row in df.iterrows():
+                for loc in LOCATIONS:
+                    loc_name = loc['name']
+                    weather_data.append({
+                        'Локация': loc_name,
+                        'Час': f"{int(row['Час']):02d}:00",
+                        'Температура (°C)': row[f"{loc_name}_temp"],
+                        'Влажность (%)': row[f"{loc_name}_humidity"],
+                        'Давление (гПа)': row[f"{loc_name}_pressure"],
+                        'Скорость ветра (м/с)': row[f"{loc_name}_wind"]
+                    })
+
+            flash('Данные успешно загружены из сохранённого файла', 'success')
+        except Exception as e:
+            flash(f'Ошибка загрузки сохранённых данных: {str(e)}', 'error')
+
     if request.method == 'POST':
         if 'weather_file' not in request.files:
             flash('Не выбран файл', 'error')
@@ -47,9 +74,9 @@ def project():
 
                     save_data = []
                     for hour in range(24):
-                        hour_str = f"{hour:02d}:00"  # Для поиска в weather_data
+                        hour_str = f"{hour:02d}:00"
                         hour_data = {
-                            'Час': hour,  # Сохраняем как число 0-23
+                            'Час': hour,
                             'День_недели': date_info['day_of_week'],
                             'Неделя_года': date_info['week_of_year'],
                             'Рабочий_день': date_info['is_workday']
