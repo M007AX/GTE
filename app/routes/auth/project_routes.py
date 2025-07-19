@@ -37,12 +37,50 @@ def project():
 
         if file and allowed_file(file.filename):
             try:
-                # Перемотка файла в начало на случай повторного чтения
                 file.seek(0)
                 weather_data, forecast_date = process_weather_file(file)
                 if weather_data:
                     date_info = get_date_info(parse_date(forecast_date))
-                    flash('Файл успешно загружен', 'success')
+
+                    date_folder = os.path.join(UPLOAD_FOLDER, forecast_date)
+                    os.makedirs(date_folder, exist_ok=True)
+
+                    save_data = []
+                    for hour in range(24):
+                        hour_str = f"{hour:02d}:00"  # Для поиска в weather_data
+                        hour_data = {
+                            'Час': hour,  # Сохраняем как число 0-23
+                            'День_недели': date_info['day_of_week'],
+                            'Неделя_года': date_info['week_of_year'],
+                            'Рабочий_день': date_info['is_workday']
+                        }
+
+                        for loc in LOCATIONS:
+                            loc_name = loc['name']
+                            loc_hour_data = next((item for item in weather_data
+                                                  if item['Локация'] == loc_name
+                                                  and item['Час'] == hour_str), None)
+                            if loc_hour_data:
+                                hour_data.update({
+                                    f"{loc_name}_temp": loc_hour_data['Температура (°C)'],
+                                    f"{loc_name}_humidity": loc_hour_data['Влажность (%)'],
+                                    f"{loc_name}_pressure": loc_hour_data['Давление (гПа)'],
+                                    f"{loc_name}_wind": loc_hour_data['Скорость ветра (м/с)']
+                                })
+                            else:
+                                hour_data.update({
+                                    f"{loc_name}_temp": 0,
+                                    f"{loc_name}_humidity": 0,
+                                    f"{loc_name}_pressure": 0,
+                                    f"{loc_name}_wind": 0
+                                })
+                        save_data.append(hour_data)
+
+                    df = pd.DataFrame(save_data)
+                    csv_path = os.path.join(date_folder, 'features_table.csv')
+                    df.to_csv(csv_path, index=False, encoding='utf-8')
+
+                    flash('Файл успешно загружен и данные сохранены', 'success')
             except Exception as e:
                 flash(f'Ошибка обработки файла: {str(e)}', 'error')
 

@@ -4,13 +4,14 @@
 
 {% block content %}
 <div class="predict-container">
-    <div class="predict-header">
-        <h1>Прогноз потребления электроэнергии</h1>
-        <div class="predict-buttons">
-            <a href="{{ url_for('project.project') }}" class="btn btn-back">Назад</a>
-            <a href="{{ url_for('auth.logout') }}" class="btn btn-logout">Выйти</a>
-        </div>
+    <div class="nav-menu">
+        <a href="{{ url_for('project.project') }}" class="btn btn-nav">Данные</a>
+        <a href="{{ url_for('project.predict') }}" class="btn btn-nav active">Прогноз</a>
+        <a href="#" class="btn btn-nav">Аналитика</a>
+        <a href="{{ url_for('auth.logout') }}" class="btn btn-logout">Выйти</a>
     </div>
+
+    <h1>Прогноз потребления электроэнергии</h1>
 
     {% if error %}
         <div class="alert alert-danger">{{ error }}</div>
@@ -49,10 +50,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         const ctx = document.getElementById('consumptionChart').getContext('2d');
 
-        // Данные для графика
         const chartData = {{ predictions|map(attribute='prediction')|list|tojson }};
-
-        // Создаем метки для 24 часов (0-23)
         const labels = Array.from({length: 24}, (_, i) => i);
 
         new Chart(ctx, {
@@ -71,7 +69,7 @@
                 scales: {
                     y: {
                         title: { display: true, text: 'кВт·ч' },
-                        beginAtZero: false //поменять, если надо не из нуля
+                        beginAtZero: false
                     },
                     x: {
                         title: { display: true, text: 'Часы' },
@@ -81,11 +79,8 @@
                             stepSize: 1,
                             autoSkip: false,
                             callback: function(value) {
-                                // Добавляем 0 в начале (при value = -0.5)
                                 if (value === -0.5) return '0';
-                                // Добавляем 0 в конце (при value = 23.5)
                                 if (value === 23.5) return '0';
-                                // Для остальных значений добавляем +1 и смещаем на 0.5
                                 if (Number.isInteger(value - 0.5) && value >= 0.5 && value < 23.5) {
                                     return (value - 0.5) + 1;
                                 }
@@ -133,36 +128,37 @@
 </script>
 
 <style>
-    .predict-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 20px;
-    }
-
-    .predict-buttons {
+    .nav-menu {
         display: flex;
         gap: 10px;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #ddd;
     }
 
-    .btn {
+    .btn-nav {
         padding: 8px 16px;
         border-radius: 4px;
         text-decoration: none;
         font-weight: bold;
         transition: background-color 0.3s;
+        background-color: #f8f9fa;
+        color: #333;
+        border: 1px solid #ddd;
     }
 
-    .btn-back {
-        background-color: #6c757d;
+    .btn-nav:hover {
+        background-color: #e9ecef;
+    }
+
+    .btn-nav.active {
+        background-color: #007bff;
         color: white;
-    }
-
-    .btn-back:hover {
-        background-color: #5a6268;
+        border-color: #007bff;
     }
 
     .btn-logout {
+        margin-left: auto;
         background-color: #dc3545;
         color: white;
     }
@@ -195,6 +191,15 @@
 
     .predict-table tr:nth-child(even) {
         background-color: #f9f9f9;
+    }
+
+    .alert-danger {
+        color: #721c24;
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 20px;
     }
 </style>
 {% endblock %}

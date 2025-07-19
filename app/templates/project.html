@@ -4,6 +4,13 @@
 
 {% block content %}
 <div class="project-container">
+    <div class="nav-menu">
+        <a href="{{ url_for('project.project') }}" class="btn btn-nav active">Данные</a>
+        <a href="{{ url_for('project.predict') }}" class="btn btn-nav">Прогноз</a>
+        <a href="#" class="btn btn-nav">Аналитика</a>
+        <a href="{{ url_for('auth.logout') }}" class="btn btn-logout">Выйти</a>
+    </div>
+
     <h1>Прогноз на {{ date_info.date }}</h1>
     <p>День недели: {{ date_info.day_of_week }} (0-пн, 6-вс), Неделя года: {{ date_info.week_of_year }}</p>
 
@@ -11,15 +18,10 @@
         <div class="left-controls">
             <a href="{{ url_for('project.project') }}" class="btn btn-refresh">Обновить данные</a>
             <button id="save-changes" class="btn btn-save">Сохранить</button>
-            <!-- Измененная форма для загрузки файла -->
             <form action="{{ url_for('project.project') }}" method="post" enctype="multipart/form-data" style="display: inline;">
                 <input type="file" name="weather_file" accept=".csv" required>
                 <button type="submit" class="btn btn-upload">Загрузить CSV</button>
             </form>
-        </div>
-        <div class="right-controls">
-            <a href="{{ url_for('auth.logout') }}" class="btn btn-logout">Выйти</a>
-            <a href="{{ url_for('project.predict') }}" class="btn btn-continue">Далее →</a>
         </div>
     </div>
 
@@ -82,4 +84,123 @@
 </div>
 
 <script src="{{ url_for('static', filename='js/project.js') }}"></script>
+
+<style>
+    .nav-menu {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .btn-nav {
+        padding: 8px 16px;
+        border-radius: 4px;
+        text-decoration: none;
+        font-weight: bold;
+        transition: background-color 0.3s;
+        background-color: #f8f9fa;
+        color: #333;
+        border: 1px solid #ddd;
+    }
+
+    .btn-nav:hover {
+        background-color: #e9ecef;
+    }
+
+    .btn-nav.active {
+        background-color: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+
+    .btn-logout {
+        margin-left: auto;
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .btn-logout:hover {
+        background-color: #c82333;
+    }
+
+    .weather-controls {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+    }
+
+    .left-controls {
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn {
+        padding: 8px 16px;
+        border-radius: 4px;
+        text-decoration: none;
+        font-weight: bold;
+        transition: background-color 0.3s;
+    }
+
+    .btn-refresh {
+        background-color: #6c757d;
+        color: white;
+    }
+
+    .btn-refresh:hover {
+        background-color: #5a6268;
+    }
+
+    .btn-save {
+        background-color: #28a745;
+        color: white;
+        border: none;
+        cursor: pointer;
+    }
+
+    .btn-save:hover {
+        background-color: #218838;
+    }
+
+    .btn-upload {
+        background-color: #17a2b8;
+        color: white;
+        border: none;
+        cursor: pointer;
+    }
+
+    .btn-upload:hover {
+        background-color: #138496;
+    }
+
+    .table-container {
+        overflow-x: auto;
+    }
+
+    .weather-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .weather-table th, .weather-table td {
+        padding: 8px;
+        text-align: center;
+        border: 1px solid #ddd;
+    }
+
+    .weather-table th {
+        background-color: #f2f2f2;
+        position: sticky;
+        top: 0;
+    }
+
+    .sticky-column {
+        position: sticky;
+        left: 0;
+        background-color: #f8f9fa;
+        z-index: 1;
+    }
+</style>
 {% endblock %}
