@@ -3,4 +3,4 @@ __pycache__/
 *.pyc
 .env
 venv/
-/app/predict/data.csv
+/uploads
