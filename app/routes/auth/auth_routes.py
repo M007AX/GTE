@@ -24,7 +24,7 @@ def login():
 
         session['logged_in'] = True
         flash('Добро пожаловать!', 'success')
-        return redirect(url_for('auth.project'))
+        return redirect(url_for('project.project'))
 
     return render_template('auth/login.html')
 
