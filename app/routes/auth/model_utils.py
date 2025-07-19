@@ -67,3 +67,24 @@ def prepare_features(weather_df):
         features.append(hour_feat)
 
     return np.array(features)
+
+
+def calculate_wape(y_true, y_pred):
+    """
+    Рассчитывает взвешенную абсолютную процентную ошибку (WAPE)
+
+    Параметры:
+    y_true - фактические значения (массив или список)
+    y_pred - предсказанные значения (массив или список)
+
+    Возвращает:
+    WAPE в процентах
+    """
+    y_true = np.array(y_true)
+    y_pred = np.array(y_pred)
+
+    absolute_errors = np.abs(y_true - y_pred)
+    sum_absolute_errors = np.sum(absolute_errors)
+    sum_actual_values = np.sum(y_true)
+
+    return (sum_absolute_errors / sum_actual_values) * 100 if sum_actual_values != 0 else 0

@@ -5,8 +5,9 @@ from .date_utils import get_date_info, parse_date, get_tomorrow_date
 from .constants import LOCATIONS
 import os
 import pandas as pd
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
-from .model_utils import prepare_features, MODEL
+from .model_utils import prepare_features, MODEL, calculate_wape
 
 project_bp = Blueprint('project', __name__)
 
@@ -185,3 +186,104 @@ def save_weather_data():
         return {"success": True}
     except Exception as e:
         return {"success": False, "error": str(e)}, 500
+
+
+@project_bp.route('/analysis', methods=['GET', 'POST'])
+def analysis():
+    if not session.get('logged_in'):
+        flash('Требуется авторизация', 'error')
+        return redirect(url_for('auth.login'))
+
+    try:
+        # 1. Проверяем наличие прогноза
+        tomorrow_folder = get_tomorrow_date().strftime('%d.%m.%Y')
+        date_folder = os.path.join(UPLOAD_FOLDER, tomorrow_folder)
+        predicted_path = os.path.join(date_folder, 'predicted.csv')
+        fact_path = os.path.join(date_folder, 'fact.csv')
+
+        predicted = None
+        actual = None
+        combined_data = []
+        metrics = None
+
+        # Загружаем прогнозируемые данные если они есть
+        if os.path.exists(predicted_path):
+            predicted_df = pd.read_csv(predicted_path)
+            predicted = [{
+                'hour': row['hour'],
+                'prediction': row['prediction']
+            } for _, row in predicted_df.iterrows()]
+
+        # Обработка загрузки файла с фактическими данными
+        if request.method == 'POST':
+            if 'fact_file' not in request.files:
+                flash('Не выбран файл', 'error')
+                return redirect(url_for('project.analysis'))
+
+            file = request.files['fact_file']
+            if file.filename == '':
+                flash('Не выбран файл', 'error')
+                return redirect(url_for('project.analysis'))
+
+            if file and allowed_file(file.filename):
+                try:
+                    # Сохраняем файл с фактами
+                    os.makedirs(date_folder, exist_ok=True)
+                    file.save(fact_path)
+                    flash('Фактические данные успешно загружены', 'success')
+                except Exception as e:
+                    flash(f'Ошибка сохранения файла: {str(e)}', 'error')
+
+        # Если есть оба файла (прогноз и факт)
+        if os.path.exists(fact_path) and os.path.exists(predicted_path):
+            actual_df = pd.read_csv(fact_path)
+            predicted_df = pd.read_csv(predicted_path)
+
+            # Проверяем, что данные загружены корректно
+            if not actual_df.empty and not predicted_df.empty:
+                actual = [{
+                    'hour': row['hour'],
+                    'consumption': row['consumption']
+                } for _, row in actual_df.iterrows()]
+
+                # Подготавливаем объединенные данные для таблицы
+                for hour in range(24):
+                    # Получаем данные прогноза
+                    pred_row = predicted_df[predicted_df['hour'] == hour].iloc[0] if not predicted_df[
+                        predicted_df['hour'] == hour].empty else None
+
+                    # Получаем фактические данные
+                    actual_row = actual_df[actual_df['hour'] == hour].iloc[0] if not actual_df[
+                        actual_df['hour'] == hour].empty else None
+
+                    if pred_row is not None and actual_row is not None:
+                        item = {
+                            'hour': hour,
+                            'prediction': pred_row['prediction'],
+                            'actual': actual_row['consumption'],
+                            'difference': actual_row['consumption'] - pred_row['prediction'],
+                            'percentage_diff': ((actual_row['consumption'] - pred_row['prediction']) / actual_row[
+                                'consumption']) * 100 if actual_row['consumption'] != 0 else 0
+                        }
+                        combined_data.append(item)
+
+                # Вычисляем метрики качества
+                y_true = actual_df['consumption']
+                y_pred = predicted_df['prediction']
+
+                metrics = {
+                    'mae': mean_absolute_error(y_true, y_pred),
+                    'rmse': mean_squared_error(y_true, y_pred),
+                    'r2': r2_score(y_true, y_pred),
+                    'wape': calculate_wape(y_true, y_pred)
+                }
+
+        return render_template('analysis.html',
+                               predicted=predicted,
+                               actual=actual,
+                               combined_data=combined_data,
+                               metrics=metrics)
+
+    except Exception as e:
+        flash(f'Ошибка при анализе данных: {str(e)}', 'error')
+        return redirect(url_for('project.project'))

@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Flask Auth{% endblock %}</title>
+    <title>{% block title %}Прогноз энергопотребления{% endblock %}</title>
+    <!-- Основные стили -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <!-- Дополнительные стили из блоков -->
+    {% block styles %}{% endblock %}
 </head>
 <body>
     <div class="container">
@@ -21,5 +24,10 @@
 
         {% block content %}{% endblock %}
     </div>
+
+    <!-- Основные скрипты -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Дополнительные скрипты из блоков -->
+    {% block scripts %}{% endblock %}
 </body>
 </html>

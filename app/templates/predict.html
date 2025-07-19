@@ -7,7 +7,7 @@
     <div class="nav-menu">
         <a href="{{ url_for('project.project') }}" class="btn btn-nav">Данные</a>
         <a href="{{ url_for('project.predict') }}" class="btn btn-nav active">Прогноз</a>
-        <a href="#" class="btn btn-nav">Аналитика</a>
+        <a href="{{ url_for('project.analysis') }}" class="btn btn-nav">Аналитика</a>
         <a href="{{ url_for('auth.logout') }}" class="btn btn-logout">Выйти</a>
     </div>
 

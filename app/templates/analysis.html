@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Аналитика{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/styles_analysis.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="analysis-container">
+    <!-- Навигационное меню -->
+    <div class="nav-menu">
+        <a href="{{ url_for('project.project') }}" class="btn btn-nav">Данные</a>
+        <a href="{{ url_for('project.predict') }}" class="btn btn-nav">Прогноз</a>
+        <a href="{{ url_for('project.analysis') }}" class="btn btn-nav active">Аналитика</a>
+        <a href="{{ url_for('auth.logout') }}" class="btn btn-logout">Выйти</a>
+    </div>
+
+    <h1>Анализ потребления электроэнергии</h1>
+
+    <!-- Форма загрузки данных -->
+    <div class="controls">
+        <form action="{{ url_for('project.analysis') }}" method="post" enctype="multipart/form-data">
+            <input type="file" name="fact_file" accept=".csv" required>
+            <button type="submit" class="btn btn-upload">Загрузить фактические данные (CSV)</button>
+        </form>
+    </div>
+
+    {% if error %}
+        <div class="alert alert-danger">{{ error }}</div>
+    {% else %}
+        <!-- Таблица с данными -->
+        <div class="table-container">
+            <table class="analysis-table">
+                <thead>
+                    <tr>
+                        <th>Временной интервал</th>
+                        <th>Прогноз (кВт·ч)</th>
+                        <th>Факт (кВт·ч)</th>
+                        <th>Отклонение (кВт·ч)</th>
+                        <th>Отклонение (%)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in combined_data %}
+                    <tr>
+                        <td>{{ "%02d:00-%02d:00"|format(item.hour, (item.hour + 1)%24) }}</td>
+                        <td>{{ "%.2f"|format(item.prediction) }}</td>
+                        <td>{{ "%.2f"|format(item.actual) if item.actual is not none else "-" }}</td>
+                        <td class="{{ 'positive' if item.difference > 0 else 'negative' if item.difference < 0 else '' }}">
+                            {{ "%.2f"|format(item.difference) if item.difference is not none else "-" }}
+                        </td>
+                        <td class="{{ 'positive' if item.percentage_diff > 0 else 'negative' if item.percentage_diff < 0 else '' }}">
+                            {{ "%.2f"|format(item.percentage_diff) if item.percentage_diff is not none else "-" }}%
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- График сравнения -->
+        <div class="chart-container">
+            <canvas id="comparisonChart"></canvas>
+        </div>
+
+        <!-- Метрики качества -->
+        <div class="metrics-container">
+            <h2>Метрики качества прогноза</h2>
+            <table class="metrics-table">
+                <tr>
+                    <th>Метрика</th>
+                    <th>Значение</th>
+                </tr>
+                <tr>
+                    <td>Средняя абсолютная ошибка (MAE)</td>
+                    <td>{{ "%.2f"|format(metrics.mae) if metrics else '-' }}</td>
+                </tr>
+                <tr>
+                    <td>Среднеквадратичная ошибка (RMSE)</td>
+                    <td>{{ "%.2f"|format(metrics.rmse) if metrics else '-' }}</td>
+                </tr>
+                <tr>
+                    <td>Коэффициент детерминации (R²)</td>
+                    <td>{{ "%.2f"|format(metrics.r2) if metrics else '-' }}</td>
+                </tr>
+                <tr>
+                    <td>Взвешенная абсолютная ошибка (WAPE)</td>
+                    <td>{{ "%.2f"|format(metrics.wape) if metrics else '-' }}%</td>
+                </tr>
+            </table>
+        </div>
+    {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('comparisonChart').getContext('2d');
+    const predictedData = {{ predicted|map(attribute='prediction')|list|tojson if predicted else [] }};
+    const actualData = {{ actual|map(attribute='consumption')|list|tojson if actual else [] }};
+    const labels = Array.from({length: 24}, (_, i) => `${i}:00`);
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Прогноз',
+                    data: predictedData,
+                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Факт',
+                    data: actualData,
+                    backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    title: {
+                        display: true,
+                        text: 'Потребление (кВт·ч)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Часы'
+                    },
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.dataset.label}: ${context.raw.toFixed(2)} кВт·ч`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
