@@ -99,12 +99,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const ctx = document.getElementById('comparisonChart').getContext('2d');
     const predictedData = {{ predicted|map(attribute='prediction')|list|tojson if predicted else [] }};
     const actualData = {{ actual|map(attribute='consumption')|list|tojson if actual else [] }};
-    const labels = Array.from({length: 24}, (_, i) => `${i}:00`);
 
     new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: labels,
+            labels: Array.from({length: 24}, (_, i) => i), // временные метки для структуры
             datasets: [
                 {
                     label: 'Прогноз',
@@ -134,12 +133,28 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 },
                 x: {
+                    type: 'linear',
+                    offset: true,
+                    ticks: {
+                        stepSize: 1,
+                        autoSkip: false,
+                        callback: function(value) {
+                            if (value === -0.5) return '0';
+                            if (value === 23.5) return '0';
+                            if (Number.isInteger(value - 0.5) && value >= 0.5 && value < 23.5) {
+                                return (value - 0.5) + 1;
+                            }
+                            return null;
+                        }
+                    },
+                    grid: {
+                        offset: false
+                    },
+                    min: -0.5,
+                    max: 23.5,
                     title: {
                         display: true,
                         text: 'Часы'
-                    },
-                    grid: {
-                        display: false
                     }
                 }
             },
@@ -149,12 +164,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 tooltip: {
                     callbacks: {
+                        title: function(context) {
+                            const hour = context[0].dataIndex;
+                            const prev_hour = hour % 24;
+                            const current_hour = (hour + 1) % 24;
+                            return `${prev_hour.toString().padStart(2, '0')}:00-${current_hour.toString().padStart(2, '0')}:00`;
+                        },
                         label: function(context) {
                             return `${context.dataset.label}: ${context.raw.toFixed(2)} кВт·ч`;
                         }
                     }
                 }
-            }
+            },
+            barPercentage: 0.9,
+            categoryPercentage: 0.9
         }
     });
 });
