@@ -9,13 +9,14 @@
 {% block content %}
 <div class="predict-container">
     <div class="nav-menu">
-        <a href="{{ url_for('project.project') }}" class="btn btn-nav">Данные</a>
-        <a href="{{ url_for('project.predict') }}" class="btn btn-nav active">Прогноз</a>
-        <a href="{{ url_for('project.analysis') }}" class="btn btn-nav">Аналитика</a>
+        <a href="{{ url_for('project.project', date_str=date_info.date.replace('.', '-')) }}" class="btn btn-nav">Данные</a>
+        <a href="{{ url_for('project.predict', date_str=date_info.date.replace('.', '-')) }}" class="btn btn-nav active">Прогноз</a>
+        <a href="{{ url_for('project.analysis', date_str=date_info.date.replace('.', '-')) }}" class="btn btn-nav">Аналитика</a>
         <a href="{{ url_for('auth.logout') }}" class="btn btn-logout">Выйти</a>
     </div>
 
-    <h1>Прогноз потребления электроэнергии</h1>
+    <h1>Прогноз потребления электроэнергии на {{ date_info.date }}</h1>
+    <p>День недели: {{ date_info.day_of_week }} (0-пн, 6-вс), Неделя года: {{ date_info.week_of_year }}</p>
 
     {% if error %}
         <div class="alert alert-danger">{{ error }}</div>
@@ -70,6 +71,7 @@
                 }]
             },
             options: {
+                responsive: true,
                 scales: {
                     y: {
                         title: { display: true, text: 'кВт·ч' },
@@ -116,19 +118,9 @@
                             }
                         }
                     }
-                },
-                barPercentage: 0.9,
-                categoryPercentage: 0.9,
-                datasets: {
-                    bar: {
-                        barThickness: 'flex',
-                        categoryPercentage: 0.9,
-                        barPercentage: 0.9
-                    }
                 }
             }
         });
     });
 </script>
-
 {% endblock %}

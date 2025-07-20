@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, request, session, flash
 from werkzeug.security import check_password_hash
 from .constants import ADMIN_USER
+from .date_utils import get_tomorrow_date  # Добавляем импорт
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -24,7 +25,9 @@ def login():
 
         session['logged_in'] = True
         flash('Добро пожаловать!', 'success')
-        return redirect(url_for('project.project'))
+        # Перенаправляем на страницу проекта с завтрашней датой
+        tomorrow_date = get_tomorrow_date().strftime('%d-%m-%Y')
+        return redirect(url_for('project.project', date_str=tomorrow_date))
 
     return render_template('auth/login.html')
 

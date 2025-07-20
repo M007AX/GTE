@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Аналитика{% endblock %}
+{% block title %}Анализ прогноза{% endblock %}
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/styles_analysis.css') }}">
@@ -8,19 +8,20 @@
 
 {% block content %}
 <div class="analysis-container">
-    <!-- Навигационное меню -->
+    <!-- Навигационное меню с поддержкой дат -->
     <div class="nav-menu">
-        <a href="{{ url_for('project.project') }}" class="btn btn-nav">Данные</a>
-        <a href="{{ url_for('project.predict') }}" class="btn btn-nav">Прогноз</a>
-        <a href="{{ url_for('project.analysis') }}" class="btn btn-nav active">Аналитика</a>
+        <a href="{{ url_for('project.project', date_str=date_info.date.replace('.', '-')) }}" class="btn btn-nav">Данные</a>
+        <a href="{{ url_for('project.predict', date_str=date_info.date.replace('.', '-')) }}" class="btn btn-nav">Прогноз</a>
+        <a href="{{ url_for('project.analysis', date_str=date_info.date.replace('.', '-')) }}" class="btn btn-nav active">Аналитика</a>
         <a href="{{ url_for('auth.logout') }}" class="btn btn-logout">Выйти</a>
     </div>
 
-    <h1>Анализ потребления электроэнергии</h1>
+    <h1>Анализ прогноза на {{ date_info.date }}</h1>
+    <p>День недели: {{ date_info.day_of_week }} (0-пн, 6-вс), Неделя года: {{ date_info.week_of_year }}</p>
 
-    <!-- Форма загрузки данных -->
-    <div class="controls">
-        <form action="{{ url_for('project.analysis') }}" method="post" enctype="multipart/form-data">
+    <!-- Форма загрузки данных с указанием даты -->
+    <div class="upload-section">
+        <form action="{{ url_for('project.analysis', date_str=date_info.date.replace('.', '-')) }}" method="post" enctype="multipart/form-data">
             <input type="file" name="fact_file" accept=".csv" required>
             <button type="submit" class="btn btn-upload">Загрузить фактические данные (CSV)</button>
         </form>
@@ -28,44 +29,20 @@
 
     {% if error %}
         <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    {% if not predicted %}
+        <div class="alert alert-info">
+            Нет данных прогноза для этой даты. Сначала создайте прогноз на странице "Прогноз".
+        </div>
+    {% elif not actual %}
+        <div class="alert alert-info">
+            Нет фактических данных для этой даты. Загрузите CSV файл с фактическими данными.
+        </div>
     {% else %}
-        <!-- Таблица с данными -->
-        <div class="table-container">
-            <table class="analysis-table">
-                <thead>
-                    <tr>
-                        <th>Временной интервал</th>
-                        <th>Прогноз (кВт·ч)</th>
-                        <th>Факт (кВт·ч)</th>
-                        <th>Отклонение (кВт·ч)</th>
-                        <th>Отклонение (%)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in combined_data %}
-                    <tr>
-                        <td>{{ "%02d:00-%02d:00"|format(item.hour, (item.hour + 1)%24) }}</td>
-                        <td>{{ "%.2f"|format(item.prediction) }}</td>
-                        <td>{{ "%.2f"|format(item.actual) if item.actual is not none else "-" }}</td>
-                        <td class="{{ 'positive' if item.difference > 0 else 'negative' if item.difference < 0 else '' }}">
-                            {{ "%.2f"|format(item.difference) if item.difference is not none else "-" }}
-                        </td>
-                        <td class="{{ 'positive' if item.percentage_diff > 0 else 'negative' if item.percentage_diff < 0 else '' }}">
-                            {{ "%.2f"|format(item.percentage_diff) if item.percentage_diff is not none else "-" }}%
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        <!-- График сравнения -->
-        <div class="chart-container">
-            <canvas id="comparisonChart"></canvas>
-        </div>
-
-        <!-- Метрики качества -->
-        <div class="metrics-container">
+        {% if metrics %}
+        <!-- Блок с метриками качества -->
+        <div class="metrics-section">
             <h2>Метрики качества прогноза</h2>
             <table class="metrics-table">
                 <tr>
@@ -74,36 +51,93 @@
                 </tr>
                 <tr>
                     <td>Средняя абсолютная ошибка (MAE)</td>
-                    <td>{{ "%.2f"|format(metrics.mae) if metrics else '-' }}</td>
+                    <td>{{ "%.2f"|format(metrics.mae) }} кВт·ч</td>
                 </tr>
                 <tr>
                     <td>Среднеквадратичная ошибка (RMSE)</td>
-                    <td>{{ "%.2f"|format(metrics.rmse) if metrics else '-' }}</td>
+                    <td>{{ "%.2f"|format(metrics.rmse) }} кВт·ч</td>
                 </tr>
                 <tr>
                     <td>Коэффициент детерминации (R²)</td>
-                    <td>{{ "%.2f"|format(metrics.r2) if metrics else '-' }}</td>
+                    <td>{{ "%.4f"|format(metrics.r2) }}</td>
                 </tr>
                 <tr>
                     <td>Взвешенная абсолютная ошибка (WAPE)</td>
-                    <td>{{ "%.2f"|format(metrics.wape) if metrics else '-' }}%</td>
+                    <td>{{ "%.2f"|format(metrics.wape) }}%</td>
                 </tr>
             </table>
         </div>
+        {% endif %}
+
+        {% if combined_data %}
+        <!-- Таблица сравнения прогноза и факта -->
+        <div class="comparison-section">
+            <h2>Почасовое сравнение</h2>
+            <div class="table-container">
+                <table class="analysis-table">
+                    <thead>
+                        <tr>
+                            <th>Временной интервал</th>
+                            <th>Прогноз (кВт·ч)</th>
+                            <th>Факт (кВт·ч)</th>
+                            <th>Разница (кВт·ч)</th>
+                            <th>Отклонение (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in combined_data %}
+                        <tr>
+                            <td>{{ "%02d:00-%02d:00"|format(item.hour, (item.hour + 1)%24) }}</td>
+                            <td>{{ "%.2f"|format(item.prediction) }}</td>
+                            <td>{{ "%.2f"|format(item.actual) }}</td>
+                            <td class="{{ 'positive' if item.difference > 0 else 'negative' }}">
+                                {{ "%+.2f"|format(item.difference) }}
+                            </td>
+                            <td class="{{ 'positive' if item.percentage_diff > 0 else 'negative' }}">
+                                {{ "%+.2f"|format(item.percentage_diff) }}%
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- График сравнения -->
+        <div class="chart-section">
+            <h2>График сравнения прогноза и факта</h2>
+            <div class="chart-container">
+                <canvas id="comparisonChart"></canvas>
+            </div>
+        </div>
+        {% endif %}
     {% endif %}
 </div>
 
+{% if predicted and actual %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const ctx = document.getElementById('comparisonChart').getContext('2d');
-    const predictedData = {{ predicted|map(attribute='prediction')|list|tojson if predicted else [] }};
-    const actualData = {{ actual|map(attribute='consumption')|list|tojson if actual else [] }};
 
+    // Данные для графика
+    const predictedData = [
+        {% for item in combined_data %}
+        {{ item.prediction }},
+        {% endfor %}
+    ];
+
+    const actualData = [
+        {% for item in combined_data %}
+        {{ item.actual }},
+        {% endfor %}
+    ];
+
+    // Создаем график
     new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: Array.from({length: 24}, (_, i) => i), // временные метки для структуры
+            labels: Array.from({length: 24}, (_, i) => i),
             datasets: [
                 {
                     label: 'Прогноз',
@@ -126,7 +160,7 @@ document.addEventListener('DOMContentLoaded', function() {
             maintainAspectRatio: false,
             scales: {
                 y: {
-                    beginAtZero: false,
+                    beginAtZero: true,
                     title: {
                         display: true,
                         text: 'Потребление (кВт·ч)'
@@ -182,4 +216,5 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+{% endif %}
 {% endblock %}

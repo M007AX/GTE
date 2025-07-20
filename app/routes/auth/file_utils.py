@@ -56,17 +56,8 @@ def process_weather_file(file):
                             'Скорость ветра (м/с)': row[f"{loc['name']}_wind"]
                         })
 
-                # Получаем дату из имени файла
-                filename = secure_filename(file.filename)
-                date_str = filename.split('_')[-1].split('.')[0]
-                try:
-                    forecast_date = datetime.strptime(date_str, '%d.%m.%Y').strftime('%d.%m.%Y')
-                except ValueError:
-                    # Используем завтрашнюю дату по умолчанию вместо текущей
-                    from .date_utils import get_tomorrow_date
-                    forecast_date = get_tomorrow_date().strftime('%d.%m.%Y')
-
-                return weather_data, forecast_date
+                # Возвращаем данные без даты, так как дата берется из URL
+                return weather_data, None
 
             except UnicodeDecodeError:
                 continue

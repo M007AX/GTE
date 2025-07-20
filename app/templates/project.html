@@ -9,9 +9,9 @@
 {% block content %}
 <div class="project-container">
     <div class="nav-menu">
-        <a href="{{ url_for('project.project') }}" class="btn btn-nav active">Данные</a>
-        <a href="{{ url_for('project.predict') }}" class="btn btn-nav">Прогноз</a>
-        <a href="{{ url_for('project.analysis') }}" class="btn btn-nav">Аналитика</a>
+        <a href="{{ url_for('project.project', date_str=date_info.date.replace('.', '-')) }}" class="btn btn-nav active">Данные</a>
+        <a href="{{ url_for('project.predict', date_str=date_info.date.replace('.', '-')) }}" class="btn btn-nav">Прогноз</a>
+        <a href="{{ url_for('project.analysis', date_str=date_info.date.replace('.', '-')) }}" class="btn btn-nav">Аналитика</a>
         <a href="{{ url_for('auth.logout') }}" class="btn btn-logout">Выйти</a>
     </div>
 
@@ -20,9 +20,9 @@
 
     <div class="weather-controls">
         <div class="left-controls">
-            <a href="{{ url_for('project.project') }}" class="btn btn-refresh">Обновить данные</a>
+            <a href="{{ url_for('project.project', date_str=date_info.date.replace('.', '-')) }}" class="btn btn-refresh">Обновить данные</a>
             <button id="save-changes" class="btn btn-save">Сохранить</button>
-            <form action="{{ url_for('project.project') }}" method="post" enctype="multipart/form-data" style="display: inline;">
+            <form action="{{ url_for('project.project', date_str=date_info.date.replace('.', '-')) }}" method="post" enctype="multipart/form-data" style="display: inline;">
                 <input type="file" name="weather_file" accept=".csv" required>
                 <button type="submit" class="btn btn-upload">Загрузить CSV</button>
             </form>
