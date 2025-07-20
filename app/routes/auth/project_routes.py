@@ -6,7 +6,7 @@ from .constants import LOCATIONS
 import os
 import pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from datetime import datetime
+from datetime import datetime, timedelta
 from .model_utils import prepare_features, MODEL, calculate_wape
 
 project_bp = Blueprint('project', __name__)
@@ -236,26 +236,81 @@ def analysis(date_str):
     error = None
     predicted = None
     actual = None
+    previous_day_data = None
     combined_data = []
     metrics = None
+    prev_day_metrics = None
     date_info = None
 
     try:
         # Парсим дату из URL
         target_date = parse_date(date_str, '%d-%m-%Y')
         date_info = get_date_info(target_date)
+
+        # Получаем дату предыдущего дня
+        prev_date = target_date - timedelta(days=1)
+        prev_date_str = prev_date.strftime('%d.%m.%Y')
+        prev_date_folder = os.path.join(UPLOAD_FOLDER, prev_date_str)
+        prev_date_fact_path = os.path.join(prev_date_folder, 'fact.csv')
+
+        # Пути к файлам текущего дня
         date_folder = os.path.join(UPLOAD_FOLDER, target_date.strftime('%d.%m.%Y'))
         predicted_path = os.path.join(date_folder, 'predicted.csv')
         fact_path = os.path.join(date_folder, 'fact.csv')
 
+        print(f"\n=== Отладочная информация ===")
+        print(f"Текущая дата: {target_date.strftime('%d.%m.%Y')}")
+        print(f"Путь к predicted.csv: {predicted_path} (существует: {os.path.exists(predicted_path)})")
+        print(f"Путь к fact.csv: {fact_path} (существует: {os.path.exists(fact_path)})")
+        print(f"Дата предыдущего дня: {prev_date_str}")
+        print(
+            f"Путь к fact.csv предыдущего дня: {prev_date_fact_path} (существует: {os.path.exists(prev_date_fact_path)})\n")
+
         # Загружаем прогнозируемые данные если они есть
         if os.path.exists(predicted_path):
             predicted_df = pd.read_csv(predicted_path)
-            # Конвертируем numpy типы в нативные Python типы
             predicted = [{
                 'hour': int(row['hour']),
                 'prediction': float(row['prediction'])
             } for _, row in predicted_df.iterrows()]
+            print(f"Загружено {len(predicted)} прогнозируемых значений")
+
+        # Загружаем фактические данные текущего дня если они есть
+        if os.path.exists(fact_path):
+            actual_df = pd.read_csv(fact_path)
+            actual = [{
+                'hour': int(row['hour']),
+                'consumption': float(row['consumption'])
+            } for _, row in actual_df.iterrows()]
+            print(f"Загружено {len(actual)} фактических значений")
+
+        # Загружаем данные предыдущего дня если они есть
+        if os.path.exists(prev_date_fact_path):
+            prev_day_df = pd.read_csv(prev_date_fact_path)
+            previous_day_data = [{
+                'hour': int(row['hour']),
+                'consumption': float(row['consumption'])
+            } for _, row in prev_day_df.iterrows()]
+            print(f"Загружено {len(previous_day_data)} значений предыдущего дня")
+
+            # Вычисляем метрики для предыдущего дня если есть фактические данные текущего дня
+            if actual and predicted:
+                y_true = [item['consumption'] for item in actual]
+                y_pred_prev_day = []
+
+                # Сопоставляем часы предыдущего дня с текущим днём
+                for item in actual:
+                    prev_item = next((x for x in previous_day_data if x['hour'] == item['hour']), None)
+                    y_pred_prev_day.append(prev_item['consumption'] if prev_item else 0)
+
+                if len(y_true) == len(y_pred_prev_day):
+                    prev_day_metrics = {
+                        'mae': float(mean_absolute_error(y_true, y_pred_prev_day)),
+                        'rmse': float(mean_squared_error(y_true, y_pred_prev_day)),
+                        'r2': float(r2_score(y_true, y_pred_prev_day)),
+                        'wape': float(calculate_wape(y_true, y_pred_prev_day))
+                    }
+                    print("Метрики предыдущего дня рассчитаны:", prev_day_metrics)
 
         # Обработка загрузки файла с фактическими данными
         if request.method == 'POST':
@@ -278,62 +333,69 @@ def analysis(date_str):
                         error = f'Ошибка сохранения файла: {str(e)}'
 
         # Если есть оба файла (прогноз и факт)
-        if os.path.exists(fact_path) and os.path.exists(predicted_path):
+        if actual and predicted:
             try:
-                actual_df = pd.read_csv(fact_path)
-                predicted_df = pd.read_csv(predicted_path)
+                # Подготавливаем объединенные данные для таблицы
+                for hour in range(24):
+                    # Получаем данные прогноза
+                    pred_item = next((x for x in predicted if x['hour'] == hour), None)
 
-                # Проверяем, что данные загружены корректно
-                if not actual_df.empty and not predicted_df.empty:
-                    actual = [{
-                        'hour': int(row['hour']),
-                        'consumption': float(row['consumption'])
-                    } for _, row in actual_df.iterrows()]
+                    # Получаем фактические данные
+                    actual_item = next((x for x in actual if x['hour'] == hour), None)
 
-                    # Подготавливаем объединенные данные для таблицы
-                    for hour in range(24):
-                        # Получаем данные прогноза
-                        pred_row = predicted_df[predicted_df['hour'] == hour].iloc[0] if not predicted_df[
-                            predicted_df['hour'] == hour].empty else None
+                    if pred_item and actual_item:
+                        item = {
+                            'hour': hour,
+                            'prediction': pred_item['prediction'],
+                            'actual': actual_item['consumption'],
+                            'difference': actual_item['consumption'] - pred_item['prediction'],
+                            'percentage_diff': ((actual_item['consumption'] - pred_item['prediction']) / actual_item[
+                                'consumption']) * 100 if actual_item['consumption'] != 0 else 0
+                        }
 
-                        # Получаем фактические данные
-                        actual_row = actual_df[actual_df['hour'] == hour].iloc[0] if not actual_df[
-                            actual_df['hour'] == hour].empty else None
+                        # Добавляем данные предыдущего дня если они есть
+                        if previous_day_data:
+                            prev_item = next((x for x in previous_day_data if x['hour'] == hour), None)
+                            if prev_item:
+                                item.update({
+                                    'prev_day': prev_item['consumption'],
+                                    'prev_day_diff': actual_item['consumption'] - prev_item['consumption'],
+                                    'prev_day_percentage_diff': ((actual_item['consumption'] - prev_item[
+                                        'consumption']) / actual_item['consumption']) * 100 if actual_item[
+                                                                                                   'consumption'] != 0 else 0
+                                })
 
-                        if pred_row is not None and actual_row is not None:
-                            item = {
-                                'hour': hour,
-                                'prediction': float(pred_row['prediction']),
-                                'actual': float(actual_row['consumption']),
-                                'difference': float(actual_row['consumption'] - pred_row['prediction']),
-                                'percentage_diff': float(((actual_row['consumption'] - pred_row['prediction']) / actual_row[
-                                    'consumption']) * 100) if actual_row['consumption'] != 0 else 0
-                            }
-                            combined_data.append(item)
+                        combined_data.append(item)
 
-                    # Вычисляем метрики качества
-                    y_true = actual_df['consumption'].astype(float)
-                    y_pred = predicted_df['prediction'].astype(float)
+                # Вычисляем метрики качества
+                y_true = [x['consumption'] for x in actual]
+                y_pred = [x['prediction'] for x in predicted]
 
-                    metrics = {
-                        'mae': float(mean_absolute_error(y_true, y_pred)),
-                        'rmse': float(mean_squared_error(y_true, y_pred)),
-                        'r2': float(r2_score(y_true, y_pred)),
-                        'wape': float(calculate_wape(y_true, y_pred))
-                    }
+                metrics = {
+                    'mae': float(mean_absolute_error(y_true, y_pred)),
+                    'rmse': float(mean_squared_error(y_true, y_pred)),
+                    'r2': float(r2_score(y_true, y_pred)),
+                    'wape': float(calculate_wape(y_true, y_pred))
+                }
+                print("Метрики текущего дня рассчитаны:", metrics)
+
             except Exception as e:
                 error = f'Ошибка обработки данных: {str(e)}'
+                print(f"Ошибка при обработке данных: {str(e)}")
 
     except ValueError:
         flash('Некорректный формат даты', 'error')
         return redirect(url_for('project.analysis_redirect'))
     except Exception as e:
         error = f'Ошибка при анализе данных: {str(e)}'
+        print(f"Критическая ошибка: {str(e)}")
 
     return render_template('analysis.html',
-                          predicted=predicted,
-                          actual=actual,
-                          combined_data=combined_data,
-                          metrics=metrics,
-                          error=error,
-                          date_info=date_info)
+                           predicted=predicted,
+                           actual=actual,
+                           previous_day_data=previous_day_data,
+                           combined_data=combined_data,
+                           metrics=metrics,
+                           prev_day_metrics=prev_day_metrics,
+                           error=error,
+                           date_info=date_info)

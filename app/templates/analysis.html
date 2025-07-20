@@ -4,6 +4,22 @@
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/styles_analysis.css') }}">
+<style>
+    .metrics-comparison {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    .metrics-comparison > div {
+        flex: 1;
+    }
+    .metrics-table th, .metrics-table td {
+        text-align: center;
+    }
+    .metrics-table th:first-child {
+        text-align: left;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -44,28 +60,68 @@
         <!-- Блок с метриками качества -->
         <div class="metrics-section">
             <h2>Метрики качества прогноза</h2>
-            <table class="metrics-table">
-                <tr>
-                    <th>Метрика</th>
-                    <th>Значение</th>
-                </tr>
-                <tr>
-                    <td>Средняя абсолютная ошибка (MAE)</td>
-                    <td>{{ "%.2f"|format(metrics.mae) }} кВт·ч</td>
-                </tr>
-                <tr>
-                    <td>Среднеквадратичная ошибка (RMSE)</td>
-                    <td>{{ "%.2f"|format(metrics.rmse) }} кВт·ч</td>
-                </tr>
-                <tr>
-                    <td>Коэффициент детерминации (R²)</td>
-                    <td>{{ "%.4f"|format(metrics.r2) }}</td>
-                </tr>
-                <tr>
-                    <td>Взвешенная абсолютная ошибка (WAPE)</td>
-                    <td>{{ "%.2f"|format(metrics.wape) }}%</td>
-                </tr>
-            </table>
+            <div class="metrics-comparison">
+                <div>
+                    <h3>Текущий прогноз</h3>
+                    <table class="metrics-table">
+                        <tr>
+                            <th>Метрика</th>
+                            <th>Значение</th>
+                        </tr>
+                        <tr>
+                            <td>Средняя абсолютная ошибка (MAE)</td>
+                            <td>{{ "%.2f"|format(metrics.mae) }} кВт·ч</td>
+                        </tr>
+                        <tr>
+                            <td>Среднеквадратичная ошибка (RMSE)</td>
+                            <td>{{ "%.2f"|format(metrics.rmse) }} кВт·ч</td>
+                        </tr>
+                        <tr>
+                            <td>Коэффициент детерминации (R²)</td>
+                            <td>{{ "%.4f"|format(metrics.r2) }}</td>
+                        </tr>
+                        <tr>
+                            <td>Взвешенная абсолютная ошибка (WAPE)</td>
+                            <td>{{ "%.2f"|format(metrics.wape) }}%</td>
+                        </tr>
+                    </table>
+                </div>
+
+                {% if prev_day_metrics %}
+                <div>
+                    <h3>Предыдущий день</h3>
+                    <table class="metrics-table">
+                        <tr>
+                            <th>Метрика</th>
+                            <th>Значение</th>
+                        </tr>
+                        <tr>
+                            <td>Средняя абсолютная ошибка (MAE)</td>
+                            <td>{{ "%.2f"|format(prev_day_metrics.mae) }} кВт·ч</td>
+                        </tr>
+                        <tr>
+                            <td>Среднеквадратичная ошибка (RMSE)</td>
+                            <td>{{ "%.2f"|format(prev_day_metrics.rmse) }} кВт·ч</td>
+                        </tr>
+                        <tr>
+                            <td>Коэффициент детерминации (R²)</td>
+                            <td>{{ "%.4f"|format(prev_day_metrics.r2) }}</td>
+                        </tr>
+                        <tr>
+                            <td>Взвешенная абсолютная ошибка (WAPE)</td>
+                            <td>{{ "%.2f"|format(prev_day_metrics.wape) }}%</td>
+                        </tr>
+                    </table>
+                </div>
+                {% else %}
+                <div>
+                    <h3>Предыдущий день</h3>
+                    <div class="alert alert-info">
+                        Нет данных предыдущего дня для сравнения. Загрузите фактические данные за предыдущий день.
+                    </div>
+                </div>
+                {% endif %}
+            </div>
         </div>
         {% endif %}
 
@@ -82,6 +138,11 @@
                             <th>Факт (кВт·ч)</th>
                             <th>Разница (кВт·ч)</th>
                             <th>Отклонение (%)</th>
+                            {% if previous_day_data %}
+                            <th>Пред. день (кВт·ч)</th>
+                            <th>Разница (кВт·ч)</th>
+                            <th>Отклонение (%)</th>
+                            {% endif %}
                         </tr>
                     </thead>
                     <tbody>
@@ -96,6 +157,22 @@
                             <td class="{{ 'positive' if item.percentage_diff > 0 else 'negative' }}">
                                 {{ "%+.2f"|format(item.percentage_diff) }}%
                             </td>
+                            {% if previous_day_data %}
+                            {% set prev_day_item = previous_day_data|selectattr('hour', 'equalto', item.hour)|first %}
+                            {% if prev_day_item %}
+                            <td>{{ "%.2f"|format(prev_day_item.consumption) }}</td>
+                            <td class="{{ 'positive' if (item.actual - prev_day_item.consumption) > 0 else 'negative' }}">
+                                {{ "%+.2f"|format(item.actual - prev_day_item.consumption) }}
+                            </td>
+                            <td class="{{ 'positive' if ((item.actual - prev_day_item.consumption)/item.actual*100) > 0 else 'negative' }}">
+                                {{ "%+.2f"|format((item.actual - prev_day_item.consumption)/item.actual*100 if item.actual != 0 else 0) }}%
+                            </td>
+                            {% else %}
+                            <td>-</td>
+                            <td>-</td>
+                            <td>-</td>
+                            {% endif %}
+                            {% endif %}
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -110,6 +187,14 @@
                 <canvas id="comparisonChart"></canvas>
             </div>
         </div>
+        <div class="chart-controls">
+            <label><input type="checkbox" id="showPredicted" checked> Прогноз</label>
+            <label><input type="checkbox" id="showActual" checked> Факт</label>
+            {% if previous_day_data %}
+            <label><input type="checkbox" id="showPrevious" checked> Предыдущий день</label>
+            {% endif %}
+        </div>
+
         {% endif %}
     {% endif %}
 </div>
@@ -133,26 +218,53 @@ document.addEventListener('DOMContentLoaded', function() {
         {% endfor %}
     ];
 
+    {% if previous_day_data %}
+    const previousDayData = [
+        {% for item in combined_data %}
+        {% if item.prev_day is defined %}
+        {{ item.prev_day }},
+        {% else %}
+        null,
+        {% endif %}
+        {% endfor %}
+    ];
+    {% endif %}
+
     // Создаем график
-    new Chart(ctx, {
+    const chart = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: Array.from({length: 24}, (_, i) => i),
             datasets: [
                 {
+                    id: 'predicted',
                     label: 'Прогноз',
                     data: predictedData,
                     backgroundColor: 'rgba(54, 162, 235, 0.7)',
                     borderColor: 'rgba(54, 162, 235, 1)',
-                    borderWidth: 1
+                    borderWidth: 1,
+                    hidden: false
                 },
                 {
+                    id: 'actual',
                     label: 'Факт',
                     data: actualData,
                     backgroundColor: 'rgba(255, 99, 132, 0.7)',
                     borderColor: 'rgba(255, 99, 132, 1)',
-                    borderWidth: 1
+                    borderWidth: 1,
+                    hidden: false
+                },
+                {% if previous_day_data %}
+                {
+                    id: 'previous',
+                    label: 'Предыдущий день',
+                    data: previousDayData,
+                    backgroundColor: 'rgba(255, 165, 0, 0.7)',
+                    borderColor: 'rgba(255, 165, 0, 1)',
+                    borderWidth: 1,
+                    hidden: false
                 }
+                {% endif %}
             ]
         },
         options: {
@@ -210,10 +322,28 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             },
-            barPercentage: 0.9,
+            barPercentage: 0.8,
             categoryPercentage: 0.9
         }
     });
+
+    // Управление видимостью данных через чекбоксы
+    document.getElementById('showPredicted').addEventListener('change', function(e) {
+        chart.getDatasetMeta(0).hidden = !e.target.checked;
+        chart.update();
+    });
+
+    document.getElementById('showActual').addEventListener('change', function(e) {
+        chart.getDatasetMeta(1).hidden = !e.target.checked;
+        chart.update();
+    });
+
+    {% if previous_day_data %}
+    document.getElementById('showPrevious').addEventListener('change', function(e) {
+        chart.getDatasetMeta(2).hidden = !e.target.checked;
+        chart.update();
+    });
+    {% endif %}
 });
 </script>
 {% endif %}
