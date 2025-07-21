@@ -4,6 +4,7 @@
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/styles_analysis.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/styles_calendar.css') }}">
 <style>
     .metrics-comparison {
         display: flex;
@@ -32,7 +33,7 @@
         <a href="{{ url_for('auth.logout') }}" class="btn btn-logout">Выйти</a>
     </div>
 
-    <h1>Анализ прогноза на {{ date_info.date }}</h1>
+    <h1 class="date-picker" id="datePicker">Анализ прогноза на <span class="date-display">{{ date_info.date }}</span></h1>
     <p>День недели: {{ date_info.day_of_week }} (0-пн, 6-вс), Неделя года: {{ date_info.week_of_year }}</p>
 
     <!-- Форма загрузки данных с указанием даты -->
@@ -199,8 +200,25 @@
     {% endif %}
 </div>
 
+
+<div class="date-picker-popup" id="datePickerPopup">
+    <div class="header">
+        <span class="nav-btn" id="prevMonth">&lt;</span>
+        <span id="currentMonthYear">Июль 2023</span>
+        <span class="nav-btn" id="nextMonth">&gt;</span>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Пн</th><th>Вт</th><th>Ср</th><th>Чт</th><th>Пт</th><th>Сб</th><th>Вс</th>
+            </tr>
+        </thead>
+        <tbody id="calendarDays"></tbody>
+    </table>
+</div>
 {% if predicted and actual %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const ctx = document.getElementById('comparisonChart').getContext('2d');
@@ -347,4 +365,5 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endif %}
+<script src="{{ url_for('static', filename='js/calendar.js') }}"></script>
 {% endblock %}

@@ -1,0 +1,79 @@
+/* Календарь */
+.date-picker {
+    cursor: pointer;
+    position: relative;
+    display: inline-block;
+    color: #005eb8;
+}
+
+.date-picker:hover {
+    text-decoration: underline;
+}
+
+.date-picker-popup {
+    position: absolute;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 10px;
+    z-index: 1000;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    display: none;
+}
+
+.date-picker-popup.show {
+    display: block;
+}
+
+.date-picker-popup table {
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.date-picker-popup th,
+.date-picker-popup td {
+    padding: 5px;
+    text-align: center;
+}
+
+.date-picker-popup th {
+    background: #f2f2f2;
+    font-size: 14px;
+}
+
+.date-picker-popup td {
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.date-picker-popup td:hover {
+    background: #e9ecef;
+}
+
+.date-picker-popup .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+.date-picker-popup .nav-btn {
+    cursor: pointer;
+    padding: 0 10px;
+    font-weight: bold;
+    user-select: none;
+}
+
+.date-picker-popup .nav-btn:hover {
+    color: #007bff;
+}
+
+.date-picker-popup td.selected {
+    background-color: #007bff;
+    color: white;
+}
+
+.date-picker-popup td.selected:hover {
+    background-color: #0069d9;
+}
