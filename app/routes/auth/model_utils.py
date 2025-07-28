@@ -21,7 +21,7 @@ def prepare_features(weather_df):
     features = []
 
     # Проверяем наличие всех необходимых столбцов
-    required_columns = ['Час', 'День_недели', 'Неделя_года', 'Рабочий_день']
+    required_columns = ['Час', 'День_недели', 'Неделя_года', 'Рабочий_день', 'lag_24']
     for loc in LOCATIONS:
         required_columns.extend([
             f"{loc['name']}_temp",
@@ -52,7 +52,8 @@ def prepare_features(weather_df):
             hour_data['Час'].values[0],
             hour_data['День_недели'].values[0],
             hour_data['Неделя_года'].values[0],
-            hour_data['Рабочий_день'].values[0]
+            hour_data['Рабочий_день'].values[0],
+            hour_data['lag_24'].values[0]  # Добавлен lag_24
         ]
 
         # Добавляем погодные данные для всех локаций

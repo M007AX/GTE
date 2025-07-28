@@ -37,12 +37,20 @@ function saveTableData(shouldContinue = false) {
             const workdaySelect = row.querySelector('.editable-workday');
             const isWorkday = workdaySelect ? workdaySelect.value : '1';
 
+            // Get lag_24 value from the previous day fact column (5th td in the row)
+            const lagCell = row.querySelector('td:nth-child(5)');
+            let lagValue = '0';
+            if (lagCell && lagCell.textContent && lagCell.textContent !== '-') {
+                lagValue = lagCell.textContent.trim();
+            }
+
             // Create the base data object for this hour
             const hourData = {
                 Час: hourNum,
                 День_недели: parseInt(dayOfWeek),
                 Неделя_года: parseInt(weekOfYear),
-                Рабочий_день: parseInt(isWorkday)
+                Рабочий_день: parseInt(isWorkday),
+                lag_24: parseFloat(lagValue) || 0
             };
 
             // Get all location data for this hour

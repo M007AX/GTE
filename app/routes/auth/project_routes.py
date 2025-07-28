@@ -8,6 +8,7 @@ import pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from datetime import datetime, timedelta
 from .model_utils import prepare_features, MODEL, calculate_wape
+import numpy as np
 
 project_bp = Blueprint('project', __name__)
 
@@ -40,6 +41,26 @@ def project(date_str):
 
     date_info = get_date_info(target_date)
     weather_data = None
+    previous_day_data = None
+
+    # Получаем данные за предыдущие сутки
+    prev_date = target_date - timedelta(days=1)
+    prev_date_str = prev_date.strftime('%d.%m.%Y')
+    prev_date_folder = os.path.join(UPLOAD_FOLDER, prev_date_str)
+    prev_fact_path = os.path.join(prev_date_folder, 'fact.csv')
+
+    if os.path.exists(prev_fact_path):
+        try:
+            with open(prev_fact_path, 'r', encoding='utf-8-sig') as f:
+                prev_df = pd.read_csv(f)
+                previous_day_data = {
+                    int(row['hour']): float(row['consumption'])
+                    for _, row in prev_df.iterrows()
+                }
+                print(f"Данные предыдущего дня: {previous_day_data}")
+        except Exception as e:
+            print(f"Ошибка загрузки данных предыдущего дня: {str(e)}")
+            flash(f'Ошибка загрузки данных предыдущего дня: {str(e)}', 'error')
 
     # Проверяем наличие сохранённых данных
     date_folder = os.path.join(UPLOAD_FOLDER, target_date.strftime('%d.%m.%Y'))
@@ -50,17 +71,22 @@ def project(date_str):
             df = pd.read_csv(csv_path)
             weather_data = []
             for _, row in df.iterrows():
+                hour = int(row['Час'])
+                display_hour = hour - 1 if hour > 0 else 23
+
+                # Получаем потребление за тот же час предыдущего дня
+                lag_24 = previous_day_data.get(hour, 0) if previous_day_data else 0
+
                 for loc in LOCATIONS:
                     loc_name = loc['name']
-                    hour = int(row['Час'])
-                    display_hour = hour - 1 if hour > 0 else 23  # Преобразуем для отображения 0-23
                     weather_data.append({
                         'Локация': loc_name,
                         'Час': f"{display_hour:02d}:00",
                         'Температура (°C)': row[f"{loc_name}_temp"],
                         'Влажность (%)': row[f"{loc_name}_humidity"],
                         'Давление (гПа)': row[f"{loc_name}_pressure"],
-                        'Скорость ветра (м/с)': row[f"{loc_name}_wind"]
+                        'Скорость ветра (м/с)': row[f"{loc_name}_wind"],
+                        'lag_24': lag_24
                     })
             flash('Данные успешно загружены из сохранённого файла', 'success')
         except Exception as e:
@@ -80,16 +106,19 @@ def project(date_str):
                     os.makedirs(date_folder, exist_ok=True)
                     save_data = []
 
-                    # Сохраняем часы в порядке 1,2,...,23,0
                     for hour in range(24):
-                        display_hour = hour  # Для отображения 0-23
-                        save_hour = hour + 1 if hour < 23 else 0  # Для сохранения 1,2,...,23,0
+                        display_hour = hour
+                        save_hour = hour + 1 if hour < 23 else 0
+
+                        # Получаем потребление за тот же час предыдущего дня
+                        lag_24 = previous_day_data.get(hour, 0) if previous_day_data else 0
 
                         hour_data = {
-                            'Час': save_hour,  # Сохраняем в нужном для модели формате
+                            'Час': save_hour,
                             'День_недели': date_info['day_of_week'],
                             'Неделя_года': date_info['week_of_year'],
-                            'Рабочий_день': date_info['is_workday']
+                            'Рабочий_день': date_info['is_workday'],
+                            'lag_24': lag_24
                         }
 
                         hour_str = f"{display_hour:02d}:00"
@@ -115,7 +144,24 @@ def project(date_str):
                         save_data.append(hour_data)
 
                     df = pd.DataFrame(save_data)
+
+                    # --- КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ: Упорядочиваем столбцы перед сохранением ---
+                    if hasattr(MODEL, 'feature_names_in_'):
+                        # Для sklearn-стиля модели
+                        correct_order = MODEL.feature_names_in_
+                    else:
+                        # Для нативного XGBoost
+                        correct_order = MODEL.get_booster().feature_names
+
+                    # Проверяем, что все нужные колонки есть
+                    missing_cols = set(correct_order) - set(df.columns)
+                    if missing_cols:
+                        raise ValueError(f"Отсутствуют колонки: {missing_cols}")
+
+                    # Упорядочиваем и сохраняем
+                    df = df[correct_order]
                     df.to_csv(csv_path, index=False, encoding='utf-8')
+
                     flash('Файл успешно загружен и данные сохранены', 'success')
                     return redirect(url_for('project.project', date_str=date_str))
             except Exception as e:
@@ -124,7 +170,8 @@ def project(date_str):
     return render_template('project.html',
                            weather_data=weather_data,
                            locations=LOCATIONS,
-                           date_info=date_info)
+                           date_info=date_info,
+                           previous_day_data=previous_day_data)
 
 
 @project_bp.route('/predict')
@@ -145,36 +192,49 @@ def predict(date_str):
         return redirect(url_for('auth.login'))
 
     try:
-        # Парсим дату из URL
+        # 1. Парсинг даты и подготовка путей
         target_date = parse_date(date_str, '%d-%m-%Y')
         date_folder = os.path.join(UPLOAD_FOLDER, target_date.strftime('%d.%m.%Y'))
-        csv_path = os.path.join(date_folder, 'features_table.csv')
+        features_path = os.path.join(date_folder, 'features_table.csv')
+        predictions_path = os.path.join(date_folder, 'predicted.csv')
 
-        if not os.path.exists(csv_path):
+        # 2. Проверка наличия файла с признаками
+        if not os.path.exists(features_path):
             flash('Сначала загрузите данные о погоде', 'error')
             return redirect(url_for('project.project', date_str=date_str))
 
-        # Загружаем данные
-        df = pd.read_csv(csv_path)
+        # 3. Загрузка и проверка данных
+        features = pd.read_csv(features_path)
 
-        # Подготавливаем фичи и делаем предсказания
-        X = prepare_features(df)
-        predictions = MODEL.predict(X)
+        if len(features) != 24:
+            flash('Должно быть 24 записи (по одной на каждый час)', 'error')
+            return redirect(url_for('project.project', date_str=date_str))
 
-        # Сохраняем предсказания
-        predictions_df = pd.DataFrame({
-            'hour': range(24),
-            'prediction': predictions
-        })
-        predictions_path = os.path.join(date_folder, 'predicted.csv')
-        predictions_df.to_csv(predictions_path, index=False)
+        # 4. Упорядочивание признаков
+        if hasattr(MODEL, 'feature_names_in_'):
+            features = features[MODEL.feature_names_in_]
+        else:
+            features = features[MODEL.get_booster().feature_names]
 
-        # Форматируем результат
-        results = [{
-            'hour': hour,
-            'prediction': round(float(pred), 2)
-        } for hour, pred in zip(range(24), predictions)]
+        # 5. Получение и обработка предсказаний
+        raw_predictions = MODEL.predict(features)
 
+        # Округление до 2 знаков
+        rounded_predictions = [round(float(pred), 2) for pred in raw_predictions]
+
+        # Сдвиг на 1 вправо (ротация массива)
+        shifted_predictions = np.roll(rounded_predictions, 1)
+
+        # Замена первого элемента на последний из исходного
+        shifted_predictions[0] = rounded_predictions[-1]
+
+        # 6. Сохранение результатов
+        results = [{'hour': hour, 'prediction': pred}
+                   for hour, pred in enumerate(shifted_predictions)]
+
+        pd.DataFrame(results).to_csv(predictions_path, index=False)
+
+        # 7. Подготовка данных для отображения
         return render_template('predict.html',
                                predictions=results,
                                date_info=get_date_info(target_date))
@@ -184,7 +244,7 @@ def predict(date_str):
         return redirect(url_for('project.predict_redirect'))
     except Exception as e:
         flash(f'Ошибка при прогнозировании: {str(e)}', 'error')
-        return redirect(url_for('project.project_redirect'))
+        return redirect(url_for('project.project', date_str=date_str))
 
 
 @project_bp.route('/save-weather-data', methods=['POST'])

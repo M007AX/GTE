@@ -38,12 +38,14 @@
                     <th style="background-color: #f2f2f2">День недели</th>
                     <th style="background-color: #f2f2f2">Неделя года</th>
                     <th style="background-color: #f2f2f2">Рабочий день</th>
+                    <th style="background-color: #f2f2f2">Факт предыдущего дня (кВт·ч)</th>
                     {% for location in locations %}
                     <th colspan="4" style="background-color: {{ location.color }}">{{ location.name }}<br>({{ location.coords[0]|round(4) }}°N, {{ location.coords[1]|round(4) }}°E)</th>
                     {% endfor %}
                 </tr>
                 <tr>
                     <th class="sticky-column"></th>
+                    <th style="background-color: #f2f2f2"></th>
                     <th style="background-color: #f2f2f2"></th>
                     <th style="background-color: #f2f2f2"></th>
                     <th style="background-color: #f2f2f2"></th>
@@ -66,6 +68,13 @@
                             <option value="1" {% if date_info.is_workday == 1 %}selected{% endif %}>Рабочий (1)</option>
                             <option value="0" {% if date_info.is_workday == 0 %}selected{% endif %}>Нерабочий (0)</option>
                         </select>
+                    </td>
+                    <td style="background-color: #f2f2f2">
+                        {% if previous_day_data and hour in previous_day_data %}
+                            {{ "%.2f"|format(previous_day_data[hour]) }}
+                        {% else %}
+                            -
+                        {% endif %}
                     </td>
                     {% for location in locations %}
                         {% set loc_data = weather_data|selectattr('Локация', 'equalto', location.name)|selectattr('Час', 'equalto', "%02d:00" % hour)|list %}
