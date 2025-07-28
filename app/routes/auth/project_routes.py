@@ -222,15 +222,10 @@ def predict(date_str):
         # Округление до 2 знаков
         rounded_predictions = [round(float(pred), 2) for pred in raw_predictions]
 
-        # Сдвиг на 1 вправо (ротация массива)
-        shifted_predictions = np.roll(rounded_predictions, 1)
-
-        # Замена первого элемента на последний из исходного
-        shifted_predictions[0] = rounded_predictions[-1]
 
         # 6. Сохранение результатов
         results = [{'hour': hour, 'prediction': pred}
-                   for hour, pred in enumerate(shifted_predictions)]
+                   for hour, pred in enumerate(rounded_predictions)]
 
         pd.DataFrame(results).to_csv(predictions_path, index=False)
 
